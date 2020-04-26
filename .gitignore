@@ -1,0 +1,2 @@
+#ignore fits files in data/websky
+*.fits
