@@ -29,7 +29,7 @@ class bin_smooth():
 
         return new_ells, smooth_ps
 
-    
+
 class lens_bias():
     """ Get auto powerspectrum of two reconstructed kappa maps and compare the bias """
     def __init__(self, ellmin, ellmax, nlev_t, beam_arcmin, px_arcmin, width_deg,cmb1=None, cmb2=None, inkap=None):
