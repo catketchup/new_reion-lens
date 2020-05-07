@@ -279,3 +279,14 @@ def binave(map, modlmap, ellmin, ellmax, delta_ell):
 
     centers, p1d = binner.bin(map)
     return centers, p1d
+
+def convert(input_map, lmax, output_path, output_name):
+    """read in fits map, get alms and cl from the map and write them on disk"""
+    Map = hp.read_map(input_map)
+    alm = hp.map2alm(Map, lmax=lmax)
+    hp.write_alm(output_path+f'{output_name}_alm_{lmax}.fits', alm, overwrite=True)
+
+    cl = hp.alm2cl(alm)
+    data_dict = {'ell':np.arange(0, cl.shape[0]), 'Cl':cl}
+    data_df = pd.DataFrame(data_dict)
+    data_df.to_csv(output_path + f'{output_name}_cl_{lmax}.csv', index=False)
