@@ -9,20 +9,20 @@ from symlens import utils
 import importlib
 from mpi4py import MPI
 import pandas as pd
-import tools
+import tools_test
 
 # Simulate bias of lensing reconstruction from term B
 
 # map source, 'Colin' or 'websky'
-map_source = 'websky'
+map_source = 'Colin'
 # 'lt' for late-time kSZ or 'ri' for reionization kSZ
-ksz_type = 'ri'
+ksz_type = 'lt'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 experiments = {'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4], 'CMB_S4':[1,3]}
 
 # Use maps provided by websky
-map_path = 'maps/' + map_source + '/'
+map_path = '/global/cscratch1/sd/hongbo/new_reion-lens/maps/' + map_source + '/'
 # Path of output data
 data_path = 'data/'
 
@@ -82,25 +82,26 @@ for experiment_name, value in experiments.items():
         # deconvolved noise band map
         noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
 
-        # Add CMB map, ksz gaussian map and deconvolved noise map
-        cmb_wksz_g_band = cmb_band + ksz_g_band + noise_band
-        # cmb_wksz_g_band = cmb_band + noise_band
+        ksz_band = ksz_band + noise_band
+        ksz_g_band = ksz_g_band + noise_band
 
         # Add CMB map, ksz map and deconvolved noise map
-        cmb_wksz_band = cmb_band + ksz_band + noise_band
+        cmb_band = cmb_band  + noise_band
 
         # Calculate the lensing reconstruction auto bias of the two cases above
-        Bias = tools.lens_bias(ellmin,
+        Bias = tools_test.lens_bias(ellmin,
                                ellmax,
                                nlev_t,
                                beam_arcmin,
                                px_arcmin,
                                width_deg,
-                               cmb1=cmb_wksz_g_band,
-                               cmb2=cmb_wksz_band,
+                               cmb1=ksz_band,
+                               cmb1_g = ksz_g_band,
+                               cmb2=cmb_band,
+                               cmb2_g=cmb_g_band,
                                inkap=kap_band)
 
-        Ls, Auto = Bias.auto(Lmin, Lmax, delta_L)
+        Ls, Auto = Bias.term_b(Lmin, Lmax, delta_L)
 
         # Store autospectra and their bias in a dictionary
         Auto_dict = {
