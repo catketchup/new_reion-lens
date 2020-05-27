@@ -39,7 +39,7 @@ elif experiment_name == 'Planck_SMICA':
 
 # lmin, lmax for cmb maps
 ellmin = 100
-ellmaxs = [3000, 4000]
+ellmaxs = [3000, 4000, 4500]
 # bin width for reconstructed kappa powerspectrum
 delta_L = 40
 
@@ -51,12 +51,12 @@ beam_arcmin = beam_arcmin
 # pixel size in arcmin
 px_arcmin = 1.
 # size of cutout square
-width_deg = 30
+width_deg = 10
 
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 15 deg (see below for reason)
 # band width in deg
-decmax = 30
+decmax = 40
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
