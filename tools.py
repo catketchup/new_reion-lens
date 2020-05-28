@@ -11,33 +11,44 @@ from mpi4py import MPI
 import scipy
 import pandas as pd
 
+
 class bin_smooth():
     """ Bin a powerspectrum and smooth it by interpolation """
-
     def __init__(self, bin_ells, ps, bin_width, statistic='mean'):
         self.bin_ells = bin_ells
         self.ps = ps
         # self.statistic = statistic
-        self.bins = np.arange(np.min(self.bin_ells), np.max(self.bin_ells)+1, bin_width)
+        self.bins = np.arange(np.min(self.bin_ells),
+                              np.max(self.bin_ells) + 1, bin_width)
 
-        self.binned_ps, self.bin_edges, self.binnumber = scipy.stats.binned_statistic(self.bin_ells, self.ps, statistic='mean', bins=self.bins)
-        self.bin_center = (self.bin_edges[1:]+self.bin_edges[:-1])/2
+        self.binned_ps, self.bin_edges, self.binnumber = scipy.stats.binned_statistic(
+            self.bin_ells, self.ps, statistic='mean', bins=self.bins)
+        self.bin_center = (self.bin_edges[1:] + self.bin_edges[:-1]) / 2
 
     def smooth(self, ellmin, ellmax, width):
 
         new_ells = np.arange(ellmin, ellmax, width)
-        smooth_ps = scipy.interpolate.interp1d(self.bin_center, self.binned_ps)(new_ells)
+        smooth_ps = scipy.interpolate.interp1d(self.bin_center,
+                                               self.binned_ps)(new_ells)
 
         return new_ells, smooth_ps
 
 
-class lens_bias():
-    """ Get auto powerspectrum of two reconstructed kappa maps and compare the bias """
-    def __init__(self, ellmin, ellmax, nlev_t, beam_arcmin, px_arcmin, width_deg,cmb1=None, cmb2=None, inkap=None):
+class ksz_lens():
+    """ Lensing reconstruction bias from kSZ's non-Guassian part """
+    def __init__(self,
+                 ellmin,
+                 ellmax,
+                 nlev_t,
+                 beam_arcmin,
+                 px_arcmin,
+                 width_deg,
+                 cmb=None,
+                 noise=None,
+                 ksz=None,
+                 ksz_g=None,
+                 inkap=None):
 
-        self.cmb1 = cmb1
-        self.cmb2 = cmb2
-        self.inkap = inkap
         self.ellmin = ellmin
         self.ellmax = ellmax
         self.nlev_t = nlev_t
@@ -45,8 +56,19 @@ class lens_bias():
         self.px_arcmin = px_arcmin
         self.width_deg = width_deg
 
-        self.shape = self.cmb1.shape
-        self.wcs = self.cmb2.wcs
+        self.cmb = cmb
+        self.noise = noise
+        self.ksz = ksz
+        self.ksz_g = ksz_g
+        self.inkap = inkap
+
+        self.shape = self.cmb.shape
+        self.wcs = self.cmb.wcs
+
+        # total CMB with ksz
+        self.cmb_t = cmb + ksz + noise
+        # total CMB with Gaussian ksz
+        self.cmb_tg = cmb + ksz_g + noise
 
         # npix x npix cutouts
         self.npix = int(width_deg * 60 / self.px_arcmin)
@@ -58,31 +80,26 @@ class lens_bias():
         # Get Cl_TT in theory for symlens, it is same for each cutout
         self.theory = cosmology.default_theory()
 
-    def auto(self, Lmin, Lmax, delta_L):
-        """
-        Get cutout reconstructed kappa auto-power or cross-power with input cutout kappa
-        """
-        # for statistics
+    def get_bias(self, Lmin, Lmax, delta_L):
+
         st = stats.Stats()
         # Initialize upper-left pixel corner
         iy, ix = 0, 0
 
-
-
+        # Get average kappa from cmb + kappa's Gussian part
         for itile in range(self.ntiles):
             # Get bottom-right pixel corner
-            ey = iy + self.npix
             ex = ix + self.npix
+            ey = iy + self.npix
 
             # Slice both cmb maps
-            cut_cmb1 = self.cmb1[iy:ey, ix:ex]
-            cut_cmb2 = self.cmb2[iy:ey, ix:ex]
+            cut_cmb_tg = self.cmb_tg[iy:ey, ix:ex]
 
             # Get geometry of the cutouts, I assume cut_cmb1 and cut_cmb2 have same geometry
-            cut_shape = cut_cmb1.shape
-            cut_wcs = cut_cmb1.wcs
+            cut_shape = cut_cmb_tg.shape
+            cut_wcs = cut_cmb_tg.wcs
             cut_modlmap = enmap.modlmap(cut_shape, cut_wcs)
-            ells = np.arange(0, cut_modlmap.max()+1, 1)
+            ells = np.arange(0, cut_modlmap.max() + 1, 1)
             ctt = self.theory.lCl('TT', ells)
 
             # Get taper for appodization
@@ -90,17 +107,18 @@ class lens_bias():
 
             # Define feed_dict for symlens
             feed_dict = {}
-            feed_dict['uC_T_T'] = utils.interp(ells,
-                                               ctt)(cut_modlmap)
-            feed_dict['tC_T_T'] = utils.interp(ells, ctt)(
-                cut_modlmap) + (self.nlev_t * np.pi / 180. /
-                                60.)**2. / utils.gauss_beam(
-                                    cut_modlmap, self.beam_arcmin)**2
+            feed_dict['uC_T_T'] = utils.interp(ells, ctt)(cut_modlmap)
+            feed_dict['tC_T_T'] = utils.interp(ells, ctt)(cut_modlmap) + (
+                self.nlev_t * np.pi / 180. / 60.)**2. / utils.gauss_beam(
+                    cut_modlmap, self.beam_arcmin)**2
 
             # Get cmb mask
-            cmask = utils.mask_kspace(cut_shape,cut_wcs,lmin=self.ellmin,lmax=self.ellmax)
+            cmask = utils.mask_kspace(cut_shape,
+                                      cut_wcs,
+                                      lmin=self.ellmin,
+                                      lmax=self.ellmax)
             # Get mask for reconstruction
-            kmask = utils.mask_kspace(cut_shape,cut_wcs,lmin=Lmin,lmax=Lmax)
+            kmask = utils.mask_kspace(cut_shape, cut_wcs, lmin=Lmin, lmax=Lmax)
             # Stride across the map, horizontally first and
             # increment vertically when at the end of a row
             if (itile + 1) % self.num_x != 0:
@@ -110,29 +128,91 @@ class lens_bias():
                 iy = iy + self.npix
 
             # Apodize cutout CMB maps
-            cut_cmb1 = taper * cut_cmb1
-            cut_cmb2 = taper * cut_cmb2
+            cut_cmb_tg = taper * cut_cmb_tg
 
             # Get the Fourier maps
-            cut_cmb1_k = enmap.fft(cut_cmb1, normalize='phys')
-            cut_cmb2_k = enmap.fft(cut_cmb2, normalize='phys')
+            cut_cmb_tg_k = enmap.fft(cut_cmb_tg, normalize='phys')
 
             # Reconstruct kappa fourier maps
-            cut_reckap1, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict, cmask, kmask, cut_cmb1_k, cut_cmb1_k)
-            cut_reckap2, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict, cmask, kmask, cut_cmb2_k, cut_cmb2_k)
+            cut_reckap_tg, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict,
+                                                 cmask, kmask, cut_cmb_tg_k,
+                                                 cut_cmb_tg_k)
 
             # Get auto powerspectra
-            center_L, cut_reckap1_x_reckap1 = powspec(cut_reckap1, cut_reckap1, taper, 4, cut_modlmap, Lmin, Lmax, delta_L)
-            center_L, cut_reckap2_x_reckap2 = powspec(cut_reckap2, cut_reckap2, taper, 4, cut_modlmap, Lmin, Lmax, delta_L)
-
-            # Get bias
-            bias = (cut_reckap2_x_reckap2 - cut_reckap1_x_reckap1)/cut_reckap1_x_reckap1
+            center_L, cut_reckap_x_reckap_tg = powspec(cut_reckap_tg,
+                                                       cut_reckap_tg, taper, 4,
+                                                       cut_modlmap, Lmin, Lmax,
+                                                       delta_L)
 
             # Add to stats
-            st.add_to_stats('reckap1 x reckap1', cut_reckap1_x_reckap1)
-            st.add_to_stats('reckap2 x reckap2', cut_reckap2_x_reckap2)
-            st.add_to_stats('bias', bias)
+            st.add_to_stats('reckap_x_reckap_tg', cut_reckap_x_reckap_tg)
+        # Get <reckap_x_reckap_tg> over all cutouts
+        st.get_stats()
 
+        # Get kappa from cmb + kappa for each cutout, and get bias
+        for itile in range(self.ntiles):
+            # Get bottom-right pixel corner
+            ex = ix + self.npix
+            ey = iy + self.npix
+
+            # Slice both cmb maps
+            cut_cmb_t = self.cmb_t[iy:ey, ix:ex]
+
+            # Get geometry of the cutouts, I assume cut_cmb1 and cut_cmb2 have same geometry
+            cut_shape = cut_cmb_t.shape
+            cut_wcs = cut_cmb_t.wcs
+            cut_modlmap = enmap.modlmap(cut_shape, cut_wcs)
+            ells = np.arange(0, cut_modlmap.max() + 1, 1)
+            ctt = self.theory.lCl('TT', ells)
+
+            # Get taper for appodization
+            taper, w2 = maps.get_taper_deg(cut_shape, cut_wcs)
+
+            # Define feed_dict for symlens
+            feed_dict = {}
+            feed_dict['uC_T_T'] = utils.interp(ells, ctt)(cut_modlmap)
+            feed_dict['tC_T_T'] = utils.interp(ells, ctt)(cut_modlmap) + (
+                self.nlev_t * np.pi / 180. / 60.)**2. / utils.gauss_beam(
+                    cut_modlmap, self.beam_arcmin)**2
+
+            # Get cmb mask
+            cmask = utils.mask_kspace(cut_shape,
+                                      cut_wcs,
+                                      lmin=self.ellmin,
+                                      lmax=self.ellmax)
+            # Get mask for reconstruction
+            kmask = utils.mask_kspace(cut_shape, cut_wcs, lmin=Lmin, lmax=Lmax)
+            # Stride across the map, horizontally first and
+            # increment vertically when at the end of a row
+            if (itile + 1) % self.num_x != 0:
+                ix = ix + self.npix
+            else:
+                ix = 0
+                iy = iy + self.npix
+
+            # Apodize cutout CMB maps
+            cut_cmb_t = taper * cut_cmb_t
+
+            # Get the Fourier maps
+            cut_cmb_t_k = enmap.fft(cut_cmb_t, normalize='phys')
+
+            # Reconstruct kappa fourier maps
+            cut_reckap_t, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict,
+                                                cmask, kmask, cut_cmb_t_k,
+                                                cut_cmb_t_k)
+
+            # Get auto powerspectra
+            center_L, cut_reckap_x_reckap_t = powspec(cut_reckap_t,
+                                                      cut_reckap_t, taper, 4,
+                                                      cut_modlmap, Lmin, Lmax,
+                                                      delta_L)
+
+            bias = (cut_reckap_x_reckap_t -
+                    st['cut_reckap_x_reckap_tg']['mean']
+                    ) / st['cut_reckap_x_reckap_tg']['mean']
+            # Add to stats
+            st.add_to_stats('reckap_x_reckap_t', cut_reckap_x_reckap_tg)
+            st.add_to_stats('bias, bias')
         # Get spectra and bias statistics
         st.get_stats()
 
@@ -158,7 +238,7 @@ class lens_bias():
             cut_shape = cut_cmb1.shape
             cut_wcs = cut_cmb1.wcs
             cut_modlmap = enmap.modlmap(cut_shape, cut_wcs)
-            ells = np.arange(0, cut_modlmap.max()+1, 1)
+            ells = np.arange(0, cut_modlmap.max() + 1, 1)
             ctt = self.theory.lCl('TT', ells)
 
             # Get taper for appodization
@@ -166,17 +246,18 @@ class lens_bias():
 
             # Define feed_dict for symlens
             feed_dict = {}
-            feed_dict['uC_T_T'] = utils.interp(ells,
-                                               ctt)(cut_modlmap)
-            feed_dict['tC_T_T'] = utils.interp(ells, ctt)(
-                cut_modlmap) + (self.nlev_t * np.pi / 180. /
-                                60.)**2. / utils.gauss_beam(
-                                    cut_modlmap, self.beam_arcmin)**2
+            feed_dict['uC_T_T'] = utils.interp(ells, ctt)(cut_modlmap)
+            feed_dict['tC_T_T'] = utils.interp(ells, ctt)(cut_modlmap) + (
+                self.nlev_t * np.pi / 180. / 60.)**2. / utils.gauss_beam(
+                    cut_modlmap, self.beam_arcmin)**2
 
             # Get cmb mask
-            cmask = utils.mask_kspace(cut_shape,cut_wcs,lmin=self.ellmin,lmax=self.ellmax)
+            cmask = utils.mask_kspace(cut_shape,
+                                      cut_wcs,
+                                      lmin=self.ellmin,
+                                      lmax=self.ellmax)
             # Get mask for reconstruction
-            kmask = utils.mask_kspace(cut_shape,cut_wcs,lmin=Lmin,lmax=Lmax)
+            kmask = utils.mask_kspace(cut_shape, cut_wcs, lmin=Lmin, lmax=Lmax)
             # Stride across the map, horizontally first and
             # increment vertically when at the end of a row
             if (itile + 1) % self.num_x != 0:
@@ -195,15 +276,26 @@ class lens_bias():
             cut_cmb2_k = enmap.fft(cut_cmb2, normalize='phys')
 
             # Reconstruct kappa fourier maps
-            cut_reckap1, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict, cmask, kmask, cut_cmb1_k, cut_cmb1_k)
-            cut_reckap2, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict, cmask, kmask, cut_cmb2_k, cut_cmb2_k)
+            cut_reckap1, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict,
+                                               cmask, kmask, cut_cmb1_k,
+                                               cut_cmb1_k)
+            cut_reckap2, noise_2d = cutout_rec(cut_shape, cut_wcs, feed_dict,
+                                               cmask, kmask, cut_cmb2_k,
+                                               cut_cmb2_k)
 
             # Get cross powerspectra
-            center_L, cut_inkap_x_reckap1 = powspec(cut_inkap, cut_reckap1, taper, 4, cut_modlmap, Lmin, Lmax, delta_L)
-            center_L, cut_inkap_x_reckap2 = powspec(cut_inkap, cut_reckap2, taper, 4, cut_modlmap, Lmin, Lmax, delta_L)
-            center_L, cut_inkap_x_inkap = powspec(cut_inkap, cut_inkap, taper, 2, cut_modlmap, Lmin, Lmax, delta_L)
+            center_L, cut_inkap_x_reckap1 = powspec(cut_inkap, cut_reckap1,
+                                                    taper, 4, cut_modlmap,
+                                                    Lmin, Lmax, delta_L)
+            center_L, cut_inkap_x_reckap2 = powspec(cut_inkap, cut_reckap2,
+                                                    taper, 4, cut_modlmap,
+                                                    Lmin, Lmax, delta_L)
+            center_L, cut_inkap_x_inkap = powspec(cut_inkap, cut_inkap, taper,
+                                                  2, cut_modlmap, Lmin, Lmax,
+                                                  delta_L)
             # Get bias
-            bias = (cut_inkap_x_reckap2 - cut_inkap_x_reckap1)/cut_inkap_x_reckap1
+            bias = (cut_inkap_x_reckap2 -
+                    cut_inkap_x_reckap1) / cut_inkap_x_reckap1
 
             # Add to stats
             st.add_to_stats('inkap x inkap', cut_inkap_x_inkap)
@@ -215,9 +307,6 @@ class lens_bias():
         st.get_stats()
 
         return center_L, st
-
-
-
 
 
 def cutout_rec(shape, wcs, feed_dict, cmask, kmask, map1_k, map2_k):
@@ -241,7 +330,8 @@ def cutout_rec(shape, wcs, feed_dict, cmask, kmask, map1_k, map2_k):
                    "hu_ok",
                    "TT",
                    xmask=cmask,
-                   ymask=cmask,kmask=kmask)
+                   ymask=cmask,
+                   kmask=kmask)
 
     # noise
     noise_2d = s.N_l_from_A_l_optimal(shape, wcs, norm_k)
@@ -274,6 +364,7 @@ def powspec(map1, map2, taper, taper_order, modlmap, ellmin, ellmax,
     centers, p1d = binner.bin(p2d)
     return centers, p1d
 
+
 def binave(map, modlmap, ellmin, ellmax, delta_ell):
     bin_edges = np.arange(ellmin, ellmax, delta_ell)
     binner = utils.bin2D(modlmap, bin_edges)
@@ -281,14 +372,15 @@ def binave(map, modlmap, ellmin, ellmax, delta_ell):
     centers, p1d = binner.bin(map)
     return centers, p1d
 
+
 def convert(input_map, output_path, output_name):
     """read in fits map, get alms and cl from the map and write them on disk"""
     Map = hp.read_map(input_map)
     alm = hp.map2alm(Map)
 
-    hp.write_alm(output_path+f'{output_name}_alm.fits', alm, overwrite=True)
+    hp.write_alm(output_path + f'{output_name}_alm.fits', alm, overwrite=True)
 
     cl = hp.alm2cl(alm)
-    data_dict = {'ell':np.arange(0, cl.shape[0]), 'Cl':cl}
+    data_dict = {'ell': np.arange(0, cl.shape[0]), 'Cl': cl}
     data_df = pd.DataFrame(data_dict)
     data_df.to_csv(output_path + f'{output_name}_cl.csv', index=False)
