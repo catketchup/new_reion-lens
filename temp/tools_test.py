@@ -324,9 +324,9 @@ class lens_bias():
                                                cmask, kmask, cut_ksz_g_k,
                                                cut_ksz_g_k)
 
-            center_L, ps1 = powerspec(cut_kszkap, cut_cmbkap, taper, 4,
+            center_L, ps1 = powspec(cut_kszkap, cut_cmbkap, taper, 4,
                                       cut_modlmap, Lmin, Lmax, delta_L)
-            center_L, ps2 = powerspec(cut_kszgkap, cut_cmbkap, taper, 4,
+            center_L, ps2 = powspec(cut_kszgkap, cut_cmbkap, taper, 4,
                                       cut_modlmap, Lmin, Lmax, delta_L)
 
             # Get bias

@@ -40,7 +40,7 @@ width_deg = 30
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 15 deg (see below for reason)
 # band width in deg
-decmax = 90
+decmax = 30
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
@@ -95,10 +95,9 @@ for experiment_name, value in experiments.items():
                                beam_arcmin,
                                px_arcmin,
                                width_deg,
-                               cmb1=ksz_band,
-                               cmb1_g = ksz_g_band,
-                               cmb2=cmb_band,
-                               cmb2_g=cmb_g_band,
+                               cmb1=cmb_band,
+                               ksz1=ksz_band,
+                               ksz2=ksz_g_band,
                                inkap=kap_band)
 
         Ls, Auto = Bias.term_b(Lmin, Lmax, delta_L)
@@ -106,17 +105,17 @@ for experiment_name, value in experiments.items():
         # Store autospectra and their bias in a dictionary
         Auto_dict = {
             "L": Ls,
-            "auto_wksz_g": Auto.stats['reckap1 x reckap1']['mean'],
-            "auto_wksz_g_err": Auto.stats['reckap1 x reckap1']['err'],
-            "auto_wksz": Auto.stats['reckap2 x reckap2']['mean'],
-            "auto_wksz_err": Auto.stats['reckap2 x reckap2']['err'],
-            "auto_bias": Auto.stats['bias']['mean'],
-            "auto_bias_err": Auto.stats['bias']['err']
+            "kszkap_x_cmbkap": Auto.stats['kszkap x cmbkap']['mean'],
+            "kszkap_x_cmbkap_err": Auto.stats['kszkap x cmbkap']['err'],
+            "kszgkap_x_cmbkap": Auto.stats['kszgkap x cmbkap']['mean'],
+            "kszgkap_x_cmbkap": Auto.stats['kszgkap x cmbkap']['err'],
+            "termB_bias": Auto.stats['bias']['mean'],
+            "termB_bias_err": Auto.stats['bias']['err']
         }
 
         # Convert the data in DataFrame and save it in .csv files
         Auto_df = pd.DataFrame(Auto_dict)
-        Auto_df.to_csv(data_path + map_source + '_' + ksz_type+'_auto_%s_%s_%s.csv' %(experiment_name, ellmin, ellmax),index=False)
+        Auto_df.to_csv(data_path + map_source + '_' + ksz_type+'_termB_%s_%s_%s.csv' %(experiment_name, ellmin, ellmax),index=False)
 
 
         # Calculate the lensing reconstruction cross powerspectrum to check
