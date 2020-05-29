@@ -80,9 +80,11 @@ class ksz_lens():
         # Get Cl_TT in theory for symlens, it is same for each cutout
         self.theory = cosmology.default_theory()
 
+
     def get_bias(self, Lmin, Lmax, delta_L):
 
-        st = stats.Stats()
+        st_tg = stats.Stats()
+        st_t = stats.Stats()
         # Initialize upper-left pixel corner
         iy, ix = 0, 0
 
@@ -145,10 +147,12 @@ class ksz_lens():
                                                        delta_L)
 
             # Add to stats
-            st.add_to_stats('reckap_x_reckap_tg', cut_reckap_x_reckap_tg)
+            st_tg.add_to_stats('reckap_x_reckap_tg', cut_reckap_x_reckap_tg)
         # Get <reckap_x_reckap_tg> over all cutouts
-        st.get_stats()
 
+        st_tg.get_stats()
+
+        iy, ix = 0, 0
         # Get kappa from cmb + kappa for each cutout, and get bias
         for itile in range(self.ntiles):
             # Get bottom-right pixel corner
@@ -208,15 +212,15 @@ class ksz_lens():
                                                       delta_L)
 
             bias = (cut_reckap_x_reckap_t -
-                    st['cut_reckap_x_reckap_tg']['mean']
-                    ) / st['cut_reckap_x_reckap_tg']['mean']
+                    st_tg.stats['reckap_x_reckap_tg']['mean']
+                    ) / st_tg.stats['reckap_x_reckap_tg']['mean']
             # Add to stats
-            st.add_to_stats('reckap_x_reckap_t', cut_reckap_x_reckap_tg)
-            st.add_to_stats('bias, bias')
+            st_t.add_to_stats('reckap_x_reckap_t', cut_reckap_x_reckap_t)
+            st_t.add_to_stats('bias', bias)
         # Get spectra and bias statistics
-        st.get_stats()
+        st_t.get_stats()
 
-        return center_L, st
+        return center_L, st_t
 
     def cross(self, Lmin, Lmax, delta_L):
         # for statistics
