@@ -104,13 +104,11 @@ for experiment_name, value in experiments.items():
 
         # Store autospectra and their bias in a dictionary
         Auto_dict = {
-            "L": Ls,
-            "auto_wksz_g": Auto.stats['reckap1 x reckap1']['mean'],
-            "auto_wksz_g_err": Auto.stats['reckap1 x reckap1']['err'],
-            "auto_wksz": Auto.stats['reckap2 x reckap2']['mean'],
-            "auto_wksz_err": Auto.stats['reckap2 x reckap2']['err'],
-            "auto_bias": Auto.stats['bias']['mean'],
-            "auto_bias_err": Auto.stats['bias']['err']
+            "Ls": Ls,
+            "reckap_x_reckap_t": Auto.stats['reckap2 x reckap2']['mean'],
+            "reckap_x_reckap_t_err: Auto.stats['reckap2 x reckap2']['err'],
+            "bias": Auto.stats['bias']['mean'],
+            "bias_err": Auto.stats['bias']['err']
         }
 
         # Convert the data in DataFrame and save it in .csv files

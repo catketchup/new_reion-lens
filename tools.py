@@ -56,18 +56,23 @@ class ksz_lens():
         self.px_arcmin = px_arcmin
         self.width_deg = width_deg
 
+        # lensed cmb map
         self.cmb = cmb
+        # noise map
         self.noise = noise
+        # ksz map
         self.ksz = ksz
+        # ksz_gaussian map
         self.ksz_g = ksz_g
+        # input kappa map
         self.inkap = inkap
 
         self.shape = self.cmb.shape
         self.wcs = self.cmb.wcs
 
-        # total CMB with ksz
+        # total CMB with ksz, 't' for total
         self.cmb_t = cmb + ksz + noise
-        # total CMB with Gaussian ksz
+        # total CMB with Gaussian ksz, 'tg' for total and gaussian
         self.cmb_tg = cmb + ksz_g + noise
 
         # npix x npix cutouts
@@ -82,7 +87,9 @@ class ksz_lens():
 
     def get_bias(self, Lmin, Lmax, delta_L):
 
+        # statistics for cmb_tg, 'tg' for total and gaussian, then we can get kappa_lt's average over all cutouts
         st_tg = stats.Stats()
+        # statistics for cmb_t, 't' for total, get kappa_t for each cutout
         st_t = stats.Stats()
         # Initialize upper-left pixel corner
         iy, ix = 0, 0
@@ -299,8 +306,7 @@ class ksz_lens():
                     cut_reckap1_x_reckap1) / cut_reckap1_x_reckap1
 
             # Add to stats
-            st.add_to_stats('reckap1 x reckap1', cut_reckap1_x_reckap1)
-            st.add_to_stats('reckap2 x reckap2', cut_reckap2_x_reckap2)
+            st.add_to_stats('reckap_x_reckap_t', cut_reckap2_x_reckap2)
             st.add_to_stats('bias', bias)
 
         # Get spectra and bias statistics
