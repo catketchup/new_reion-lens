@@ -86,15 +86,15 @@ class ksz_lens():
         self.theory = cosmology.default_theory()
 
     def get_bias(self, Lmin, Lmax, delta_L):
-
-        # statistics for cmb_tg, 'tg' for total and gaussian, then we can get kappa average over all cutouts
+        print('getting <cl_kappap_tg>')
+        # statistics for cmb_tg, 'tg' for total and gaussian, then we can get kappa_lt's average over all cutouts
         st_tg = stats.Stats()
-        # statistics for cmb_t, 't' for total, get kappa for each cutout
+        # statistics for cmb_t, 't' for total, get kappa_t for each cutout
         st_t = stats.Stats()
         # Initialize upper-left pixel corner
         iy, ix = 0, 0
 
-        # Get average kappa from cmb_gt, this is the Gussian part contribution
+        # Get average kappa from cmb + kappa's Gussian part
         for itile in range(self.ntiles):
             # Get bottom-right pixel corner
             ex = ix + self.npix
@@ -155,14 +155,14 @@ class ksz_lens():
             # Add to stats
             st_tg.add_to_stats('reckap_x_reckap_tg', cut_reckap_x_reckap_tg)
         # Get <reckap_x_reckap_tg> over all cutouts
+
         st_tg.get_stats()
         cl_kappa_tg_ave = st_tg.stats['reckap_x_reckap_tg']['mean']
 
-
-        # Then reconstruct kappa from each cmb_t, and get bias
         iy, ix = 0, 0
         # Get kappa from cmb + kappa for each cutout, and get bias
         for itile in range(self.ntiles):
+            print('start to get cl_kappa_t for each cutout')
             # Get bottom-right pixel corner
             ex = ix + self.npix
             ey = iy + self.npix
@@ -223,7 +223,7 @@ class ksz_lens():
             # Add to stats
             st_t.add_to_stats('reckap_x_reckap_t', cut_reckap_x_reckap_t)
             st_t.add_to_stats('bias', bias)
-
+            print('tile %s completed, %s tiles in total' %(itile+1, self.ntiles))
         # Get spectra and bias statistics
         st_t.get_stats()
 
