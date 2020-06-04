@@ -86,6 +86,14 @@ class ksz_lens():
         # Get Cl_TT in theory for symlens, it is same for each cutout
         self.theory = cosmology.default_theory()
 
+    def phi_N_0(self):
+        """ lensing potential phi zero-order noise """
+        feed_dict['X'] = self.cmb
+        return N_l_optimal(self.shape, self.wcs)
+
+    def kappa_N_0(self):
+        """ kappa reconstruction zero-order noise """
+
     def get_bias(self, Lmin, Lmax, delta_L):
         print('getting <cl_kappap_tg>')
         # statistics for cmb_tg, 'tg' for total and gaussian, then we can get kappa_lt's average over all cutouts
@@ -228,10 +236,9 @@ class ksz_lens():
             st_t.add_to_stats('bias', bias)
             print('tile %s completed, %s tiles in total' %(itile+1, self.ntiles))
         # Get spectra and bias statistics
-        center_L, noise_kap = binave(cut_modlmap, Lmin, Lmax, delta_L, kmap=noise_2d)
         st_t.get_stats()
 
-        return center_L, st_t, noise_kap
+        return center_L, st_t
 
     # def auto(self, Lmin, Lmax, delta_L):
     #     """
