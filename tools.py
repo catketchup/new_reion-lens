@@ -79,6 +79,7 @@ class ksz_lens():
         self.npix = int(width_deg * 60 / self.px_arcmin)
         # total number of tiles
         self.ntiles = int(np.prod(self.shape) / self.npix**2)
+        # self.ntiles = 1
         # number of tiles in a row
         self.num_x = int(360 / self.width_deg)
 
@@ -161,8 +162,8 @@ class ksz_lens():
 
         iy, ix = 0, 0
         # Get kappa from cmb + kappa for each cutout, and get bias
+        print('start to get cl_kappa_t for each cutout')
         for itile in range(self.ntiles):
-            print('start to get cl_kappa_t for each cutout')
             # Get bottom-right pixel corner
             ex = ix + self.npix
             ey = iy + self.npix
@@ -219,15 +220,18 @@ class ksz_lens():
                                                       cut_modlmap, Lmin, Lmax,
                                                       delta_L)
 
-            bias = (cut_reckap_x_reckap_t - cl_kappa_tg_ave) / cl_kappa_tg_ave
+
+            # bias = (cut_reckap_x_reckap_t - cl_kappa_tg_ave) / cl_kappa_tg_ave
+            bias = (cut_reckap_x_reckap_t - cl_kappa_tg_ave) / cut_reckap_x_reckap_t
             # Add to stats
             st_t.add_to_stats('reckap_x_reckap_t', cut_reckap_x_reckap_t)
             st_t.add_to_stats('bias', bias)
             print('tile %s completed, %s tiles in total' %(itile+1, self.ntiles))
         # Get spectra and bias statistics
+        center_L, noise_kap = binave(cut_modlmap, Lmin, Lmax, delta_L, kmap=noise_2d)
         st_t.get_stats()
 
-        return center_L, st_t
+        return center_L, st_t, noise_kap
 
     # def auto(self, Lmin, Lmax, delta_L):
     #     """
@@ -463,10 +467,11 @@ def powspec(map1, map2, taper, taper_order, modlmap, ellmin, ellmax,
     return centers, p1d
 
 
-def binave(map, modlmap, ellmin, ellmax, delta_ell):
+def binave(modlmap, ellmin, ellmax, delta_ell, map=None, kmap=None):
     bin_edges = np.arange(ellmin, ellmax, delta_ell)
     binner = utils.bin2D(modlmap, bin_edges)
 
+    map = enmap.ifft(kmap, normalize='phys')
     centers, p1d = binner.bin(map)
     return centers, p1d
 

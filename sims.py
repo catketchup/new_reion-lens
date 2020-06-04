@@ -19,6 +19,7 @@ map_source = 'Colin'
 ksz_type = 'lt'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
+# experiments = {'reference':[0,0]}
 experiments = {'CMB_S4': [1, 3]}
 # experiments = {'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4], 'CMB_S4':[1,3]}
 
@@ -32,13 +33,14 @@ ellmin = 100
 ellmaxs = [4000]
 # ellmaxs = [3000, 4000, 4500]
 # bin width for reconstructed kappa powerspectrum
-delta_L = 40
+delta_L = 200
 
 # pixel size in arcmin
 px_arcmin = 1.
 # size of cutout square
 width_deg = 30
 
+print('bin_width=%s' %(delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 45 deg (see below for reason)
 # band width in deg
@@ -57,7 +59,7 @@ cmb_band = curvedsky.alm2map(cmb_alm, enmap.empty(band_shape, band_wcs))
 
 
 # Read in ksz_alm and get ksz band map
-print('reading in ksz map')
+print('reading in %s %s kSZ map' %(map_source, ksz_type))
 ksz_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_alm.fits')
 ksz_band = curvedsky.alm2map(ksz_alm, enmap.empty(band_shape, band_wcs))
 
@@ -88,7 +90,7 @@ for experiment_name, value in experiments.items():
         # deconvolved noise band map
         noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
         # Calculate the lensing reconstruction auto bias of the two cases above
-        Ls, Data = tools.ksz_lens(ellmin,
+        Ls, Data, noise_kap = tools.ksz_lens(ellmin,
                                ellmax,
                                nlev_t,
                                beam_arcmin,
@@ -107,7 +109,8 @@ for experiment_name, value in experiments.items():
             "reckap_x_reckap_t_err":
             Data.stats['reckap_x_reckap_t']['err'],
             "bias": Data.stats['bias']['mean'],
-            "bias_err": Data.stats['bias']['err']
+            "bias_err": Data.stats['bias']['err'],
+            "noise_kap": noise_kap
         }
 
 
