@@ -14,24 +14,23 @@ import tools
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 
 # map source, 'Colin' or 'websky'
-map_source = 'Colin'
+map_source = 'websky'
 # 'lt' for late-time kSZ or 'ri' for reionization kSZ
-ksz_type = 'lt'
+ksz_type = 'ri'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 # experiments = {'reference':[0,0]}
-experiments = {'CMB_S4': [1, 3]}
-# experiments = {'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4], 'CMB_S4':[1,3]}
+experiments = {'CMB_S4':[1, 3], 'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4]}
 
 # Use maps provided by websky
 map_path = 'maps/' + map_source + '/'
 # Path of output data
-data_path = 'data/test/'
+data_path = 'data/'
 
 # lmin, lmax for cmb maps
-ellmin = 100
-ellmaxs = [4000]
-# ellmaxs = [3000, 4000, 4500]
+ellmin = 30
+# ellmaxs = [4000]
+ellmaxs = [3000, 4000, 4500]
 # bin width for reconstructed kappa powerspectrum
 delta_L = 200
 
@@ -44,7 +43,7 @@ print('bin_width=%s' %(delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 45 deg (see below for reason)
 # band width in deg
-decmax = 45
+decmax = 15
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
@@ -90,7 +89,7 @@ for experiment_name, value in experiments.items():
         # deconvolved noise band map
         noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
         # Calculate the lensing reconstruction auto bias of the two cases above
-        Ls, Data, noise_kap = tools.ksz_lens(ellmin,
+        Instance = tools.ksz_lens(ellmin,
                                ellmax,
                                nlev_t,
                                beam_arcmin,
@@ -100,7 +99,9 @@ for experiment_name, value in experiments.items():
                                noise=noise_band,
                                ksz=ksz_band,
                                ksz_g=ksz_g_band,
-                               inkap=kap_band).get_bias(Lmin, Lmax, delta_L)
+                               inkap=kap_band)
+
+        Ls, Data = Instance.get_bias(Lmin, Lmax, delta_L)
 
         # Store autospectra and their bias in a dictionary
         Data_dict = {
@@ -110,7 +111,12 @@ for experiment_name, value in experiments.items():
             Data.stats['reckap_x_reckap_t']['err'],
             "bias": Data.stats['bias']['mean'],
             "bias_err": Data.stats['bias']['err'],
-            "noise_kap": noise_kap
+            "ellmin": ellmin,
+            "ellmax": ellmax,
+            "cutout_width": width_deg,
+            "declination": decmax,
+            "resolution": px_arcmin,
+            "bin_width": delta_L
         }
 
 
