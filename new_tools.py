@@ -13,7 +13,7 @@ import pandas as pd
 
 # def cutout_rec(shape, wcs, feed_dict, cmask, kmask, map1_k, map2_k):
 
-def rec(ellmin,
+def Rec(ellmin,
           ellmax,
           Lmin,
           Lmax,

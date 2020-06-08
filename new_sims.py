@@ -11,28 +11,29 @@ from mpi4py import MPI
 import pandas as pd
 import tools
 import new_tools
+import ipdb
 
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 
 # map source, 'Colin' or 'websky'
-map_source = 'websky'
+map_source = 'Colin'
 # 'lt' for late-time kSZ or 'ri' for reionization kSZ
-ksz_type = 'ri'
+ksz_type = 'lt'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 # experiments = {'reference':[0,0]}
-experiments = {'Planck_SMICA': [45, 5], 'CMB_S3': [7, 1.4], 'CMB_S4': [1, 3]}
-
+experiments = {'Planck_SMICA': [45, 5], 'CMB_S3': [7, 1.4]}
+# experiments = {'CMB_S4':[1,3]}
 # Use maps provided by websky
 map_path = 'maps/' + map_source + '/'
 # Path of output data
-data_path = 'data/'
+data_path = 'data/new/'
 
 # lmin, lmax for cmb maps
 ellmin = 30
 # ellmaxs = [4000]
-# ellmaxs = [3000, 4000, 4500]
-ellmaxs = 4000
+ellmaxs = [3000, 4000, 4500]
+# ellmaxs = [4000]
 # bin width for reconstructed kappa powerspectrum
 delta_L = 200
 
@@ -74,7 +75,7 @@ kap_alm = hp.read_alm(map_path + 'kappa_alm.fits')
 kap_band = curvedsky.alm2map(kap_alm, enmap.empty(band_shape, band_wcs))
 
 npix = int(width_deg * 60 / px_arcmin)
-ntiles = int(np.prod(shape) / npix**2)
+ntiles = int(np.prod(band_shape) / npix**2)
 num_x = int(360 / width_deg)
 
 # Getting <CL_kk_tg>
@@ -107,11 +108,21 @@ for experiment_name, value in experiments.items():
             # Slice cmb_tg
             cut_cmb_tg = cmb_tg[iy:ey, ix:ex]
             #
-            results_tg = new_tools.rec(ellmin, ellmax, Lmin, Lmax, delta_L,
-                                       nlev_t, beam_arcmin, cut_cmb_tg,
-                                       cut_cmb_tg)
+            results_tg = new_tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
+                                       nlev_t, beam_arcmin, enmap1=cut_cmb_tg,
+                                       enmap2=cut_cmb_tg)
+
+            # Stride across the map, horizontally first and
+            # increment vertically when at the end of a row
+
+            if (itile + 1) % num_x != 0:
+                ix = ix + npix
+            else:
+                ix = 0
+                iy = iy + npix
             st_tg.add_to_stats('reckap_x_reckap',
                                results_tg['reckap_x_reckap'])
+
 
         st_tg.get_stats()
         cl_kappa_tg_ave = st_tg.stats['reckap_x_reckap']['mean']
@@ -122,6 +133,7 @@ for experiment_name, value in experiments.items():
         iy, ix = 0, 0
         print('Begin to get bias for each tile')
         for itile in range(ntiles):
+            # ipdb.set_trace()
             # Get bottom-right pixel corner
             ex = ix + npix
             ey = iy + npix
@@ -129,25 +141,33 @@ for experiment_name, value in experiments.items():
             # Slice cmb_t
             cut_cmb_t = cmb_t[iy:ey, ix:ex]
             #
-            results_t = new_tools.rec(ellmin, ellmax, Lmin, Lmax, delta_L,
-                                      nlev_t, beam_arcmin, cut_cmb_t,
-                                      cut_cmb_t)
+            results_t = new_tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
+                                      nlev_t, beam_arcmin, enmap1=cut_cmb_t,
+                                      enmap2=cut_cmb_t)
             bias = (results_t['reckap_x_reckap'] -
                     cl_kappa_tg_ave) / results_t['reckap_x_reckap']
 
+            # Stride across the map, horizontally first and
+            # increment vertically when at the end of a row
+            if (itile + 1) % num_x != 0:
+                ix = ix + npix
+            else:
+                ix = 0
+                iy = iy + npix
+
             st_t.add_to_stats('bias', bias)
             print('tile %s completed, %s tiles in total' %
-                  (itile + 1, self.ntiles))
+                  (itile + 1, ntiles))
         st_t.get_stats()
 
         # Store bias in a dictionary
         Data_dict = {
-            'Ls': results_t['Ls']['mean'],
-            'bias': results_t['bias']['mean'],
-            'bias_err': results_t['bias']['err']
+            'Ls': results_t['Ls'],
+            'bias': st_t.stats['bias']['mean'],
+            'bias_err': st_t.stats['bias']['err']
         }
 
         Data_df = pd.DataFrame(Data_dict)
-        Data_df.to_csv(data_path + map_source + '_' + ksz_type,
+        Data_df.to_csv(data_path + map_source + '_' + ksz_type +
                        '_%s_%s_%s.csv' % (experiment_name, ellmin, ellmax),
                        index=False)
