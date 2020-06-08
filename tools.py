@@ -163,6 +163,7 @@ class ksz_lens():
 
             # Add to stats
             st_tg.add_to_stats('reckap_x_reckap_tg', cut_reckap_x_reckap_tg)
+
         # Get <reckap_x_reckap_tg> over all cutouts
 
         st_tg.get_stats()

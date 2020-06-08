@@ -20,7 +20,7 @@ ksz_type = 'ri'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 # experiments = {'reference':[0,0]}
-experiments = {'CMB_S4':[1, 3], 'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4]}
+experiments = {'Planck_SMICA':[45,5], 'CMB_S3':[7,1.4], 'CMB_S4':[1, 3]}
 
 # Use maps provided by websky
 map_path = 'maps/' + map_source + '/'
