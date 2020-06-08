@@ -14,9 +14,9 @@ import tools
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 
 # map source, 'Colin' or 'websky'
-map_source = 'websky'
+map_source = 'Colin'
 # 'lt' for late-time kSZ or 'ri' for reionization kSZ
-ksz_type = 'ri'
+ksz_type = 'lt'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 # experiments = {'reference':[0,0]}
