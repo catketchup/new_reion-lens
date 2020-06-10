@@ -22,18 +22,16 @@ ksz_type = 'lt'
 
 # experiment configuration, name:[nlev_t,beam_arcmin]
 # experiments = {'reference':[0,0]}
-experiments = {'Planck_SMICA': [45, 5], 'CMB_S3': [7, 1.4]}
-# experiments = {'CMB_S4':[1,3]}
+experiments = {'Planck_SMICA': [45, 5], 'CMB_S3': [7, 1.4], 'CMB_S4':[1,3]}
 # Use maps provided by websky
 map_path = 'maps/' + map_source + '/'
 # Path of output data
-data_path = 'data/new/'
+data_path = 'output/'
 
 # lmin, lmax for cmb maps
 ellmin = 30
-# ellmaxs = [4000]
-ellmaxs = [3000, 4000, 4500]
-# ellmaxs = [4000]
+ellmaxs = [4000]
+# ellmaxs = [3000, 4000, 4500]
 # bin width for reconstructed kappa powerspectrum
 delta_L = 200
 
@@ -46,7 +44,7 @@ print('bin_width=%s' % (delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 45 deg (see below for reason)
 # band width in deg
-decmax = 15
+decmax = 45
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
@@ -144,6 +142,7 @@ for experiment_name, value in experiments.items():
             results_t = new_tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
                                       nlev_t, beam_arcmin, enmap1=cut_cmb_t,
                                       enmap2=cut_cmb_t)
+
             bias = (results_t['reckap_x_reckap'] -
                     cl_kappa_tg_ave) / results_t['reckap_x_reckap']
 
@@ -155,6 +154,7 @@ for experiment_name, value in experiments.items():
                 ix = 0
                 iy = iy + npix
 
+            st_t.add_to_stats('reckap_x_reckap', results_t['reckap_x_reckap'])
             st_t.add_to_stats('bias', bias)
             print('tile %s completed, %s tiles in total' %
                   (itile + 1, ntiles))
@@ -163,9 +163,15 @@ for experiment_name, value in experiments.items():
         # Store bias in a dictionary
         Data_dict = {
             'Ls': results_t['Ls'],
+            'reckap_x_reckap': st_t.stats['reckap_x_reckap']['mean'],
+            'reckap_x_reckap_err': st_t.stats['reckap_x_reckap']['err'],
             'bias': st_t.stats['bias']['mean'],
-            'bias_err': st_t.stats['bias']['err']
+            'bias_err': st_t.stats['bias']['err'],
+            'norm': results_t['norm'],
+            'noise': results_t['noise_cl']
         }
+
+
 
         Data_df = pd.DataFrame(Data_dict)
         Data_df.to_csv(data_path + map_source + '_' + ksz_type +
