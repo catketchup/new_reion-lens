@@ -31,7 +31,7 @@ class bin_smooth():
         smooth_ps = scipy.interpolate.interp1d(self.bin_center,
                                                self.binned_ps)(new_ells)
 
-        return new_ells, smooth_ps
+        return new_ells,smooth_ps
 
 
 class lens_bias():

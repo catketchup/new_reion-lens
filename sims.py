@@ -12,39 +12,44 @@ import pandas as pd
 import tools
 import new_tools
 import ipdb
+import configparser
 
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 
-# map source, 'Colin' or 'websky'
-map_source = 'Colin'
-# 'lt' for late-time kSZ or 'ri' for reionization kSZ
-ksz_type = 'lt'
+# Read in parameters from parameters.ini
+config = configparser.ConfigParser()
+config.read('parameters.ini')
 
-# experiment configuration, name:[nlev_t,beam_arcmin]
-# experiments = {'reference':[0,0]}
-experiments = {'Planck_SMICA': [45, 5], 'CMB_S3': [7, 1.4], 'CMB_S4':[1,3]}
-# Use maps provided by websky
-map_path = 'maps/' + map_source + '/'
-# Path of output data
-data_path = 'output/'
+# maps information
+map_source = config['maps']['map_source']
+ksz_type = config['maps']['ksz_type']
+decmax = config['maps']['decmax']
+width_deg = config['maps']['width_deg']
 
-# lmin, lmax for cmb maps
-ellmin = 30
-ellmaxs = [4000]
-# ellmaxs = [3000, 4000, 4500]
-# bin width for reconstructed kappa powerspectrum
-delta_L = 200
-
+# experiments configurations
+experiments = config['experiments']['experiments']
 # pixel size in arcmin
-px_arcmin = 1.
-# size of cutout square
-width_deg = 30
+px_arcmin = config['experiments']['px_arcmin']
+
+# CMB
+ellmin = config['CMB']['ellmin']
+ellmaxs = config['CMB']['ellmaxs']
+
+# Kappa
+delta_L = config['Kappa']['delta_L']
+
+
 
 print('bin_width=%s' % (delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 45 deg (see below for reason)
 # band width in deg
-decmax = 45
+
+
+# Use maps provided by websky
+map_path = 'maps/' + map_source + '/'
+# Path of output data
+data_path = 'output/'
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
