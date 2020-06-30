@@ -72,14 +72,12 @@ def Rec(ellmin,
     results = {}
 
     # normalized Fourier space CMB lensing convergence map(reckap)
-    kappa_k = norm_k * ukappa_k
-    reckap = enmap.ifft(kappa_k, normalize='phys')
+    reckap_k = norm_k * ukappa_k
+    reckap = enmap.ifft(reckap_k, normalize='phys')
 
     # reckap power spectrum
-    Ls, reckap_x_reckap = powspec(reckap, reckap, taper, 4, map_modlmap, Lmin, Lmax,
-                           delta_L)
+    Ls, reckap_x_reckap = powspec_k(reckap_k, taper=taper, taper_order=4, modlmap=map_modlmap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)
 
-#     Ls, recd = binave(reckap*cut_modlmap)
     # deflection field power spectrum
     d_auto_cl = reckap_x_reckap/(1/4*Ls**2)
     # phi power spectrum
@@ -97,24 +95,45 @@ def Rec(ellmin,
     results = {'Ls':Ls, 'reckap':reckap, 'reckap_x_reckap':reckap_x_reckap, 'd_auto_cl':d_auto_cl, 'phi_auto_cl':phi_auto_cl, 'norm':norm, 'noise_cl':noise_cl}
     return results
 
+def powspec_k(enmap1_k, enmap2_k=None, taper=None, taper_order=None, modlmap=None, lmin=None, lmax=None, delta_l=None):
 
-def powspec(map1, map2, taper, taper_order, modlmap, ellmin, ellmax,
-            delta_ell):
-    bin_edges = np.arange(ellmin, ellmax, delta_ell)
+    bin_edges = np.arange(lmin, lmax, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)
-
-    kmap1 = enmap.fft(map1, normalize='phys')
-    kmap2 = enmap.fft(map2, normalize='phys')
-
-    # kmap1_ave = utils.bin2D(modlmap, bin_edges)
-    # kmap2_ave = utils.bin2D(modlmap, bin_edges)
 
     # correct power spectra
     w = np.mean(taper**taper_order)
 
-    p2d = (kmap1 * kmap2.conj()).real / w
-    # p2d = ((kmap1-kmap1_ave) * (kmap2.conj()-kmap2_ave.conj())).real / w
-    # p2d = abs((kmap1 * kmap2.conj()).real / w)
+    if enmap2_k != None:
+        p2d = (enmap1_k * enmap2_k.conj()).real / w
+    else:
+        p2d = (enmap1_k * enmap1_k.conj()).real / w
+
+    centers, p1d = binner.bin(p2d)
+    return centers, p1d
+
+def powspec(enmap1, enmap2=None, taper_order=2, lmin=None, lmax=None, delta_l=None):
+
+    shape = enmap1.shape
+    wcs = enmap1.wcs
+    modlmap = enmap.modlmap(shape, wcs)
+
+    bin_edges = np.arange(lmin, lmax, delta_l)
+    binner = utils.bin2D(modlmap, bin_edges)
+    taper, w2 = maps.get_taper_deg(shape, wcs)
+    # w is for correction of powerspectrum
+    w = np.mean(taper**taper_order)
+
+    enmap1 = taper*enmap1
+    enmap1_k = enmap.fft(enmap1, normalize='phys')
+
+    if enmap2 is not None:
+        enmap2 = taper*enmap2
+        enmap2_k = enmap.fft(enmap2, normalize='phys')
+        p2d = (enmap1_k * enmap2_k.conj()).real / w
+    else:
+        enmap2_k = None
+        p2d = (enmap1_k * enmap1_k.conj()).real / w
+
     centers, p1d = binner.bin(p2d)
     return centers, p1d
 

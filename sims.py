@@ -10,9 +10,10 @@ import importlib
 from mpi4py import MPI
 import pandas as pd
 import tools
-import new_tools
 import ipdb
 import configparser
+import json
+from ast import literal_eval
 
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 
@@ -21,35 +22,33 @@ config = configparser.ConfigParser()
 config.read('parameters.ini')
 
 # maps information
-map_source = config['maps']['map_source']
-ksz_type = config['maps']['ksz_type']
-decmax = config['maps']['decmax']
-width_deg = config['maps']['width_deg']
+map_source = config['maps'].get('map_source')
+ksz_type = config['maps'].get('ksz_type')
+decmax = config['maps'].getint('decmax')
+width_deg = int(config['maps']['width_deg'])
 
 # experiments configurations
-experiments = config['experiments']['experiments']
+experiments = literal_eval(config['experiments'].get('experiments'))
 # pixel size in arcmin
-px_arcmin = config['experiments']['px_arcmin']
+px_arcmin = config['experiments'].getfloat('px_arcmin')
 
-# CMB
-ellmin = config['CMB']['ellmin']
-ellmaxs = config['CMB']['ellmaxs']
+# CMB ell range
+ellmin = config['CMB'].getint('ellmin')
+ellmaxs = json.loads(config['CMB'].get('ellmaxs'))
 
-# Kappa
-delta_L = config['Kappa']['delta_L']
+# Kappa L range
+# delta_L = config['Kappa'].getint('delta_L')
 
+# Use maps provided by websky or Colin
+map_path = 'maps/' + map_source + '/'
+# Path of output data
+data_path = 'output/data/'
 
-
-print('bin_width=%s' % (delta_L))
+# print('bin_width=%s' % (delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
 # and a maximum declination extent of +- 45 deg (see below for reason)
 # band width in deg
 
-
-# Use maps provided by websky
-map_path = 'maps/' + map_source + '/'
-# Path of output data
-data_path = 'output/'
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
@@ -90,7 +89,12 @@ for experiment_name, value in experiments.items():
         beam_arcmin = value[1]
         ells = np.arange(0, ellmax, 1)
         # lmin, lmax for reconstructed kappa map
-        Lmin, Lmax = 40, ellmax
+        Lmin, Lmax = ellmin, ellmax
+        if ellmax == 3000:
+            delta_L = config['Kappa'].getint('delta_L1')
+        else:
+            delat_L = config['Kappa'].getint('delat_L2')
+
         # noise power spectrum
         Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
         # deconvolved noise power spectrum
@@ -111,7 +115,7 @@ for experiment_name, value in experiments.items():
             # Slice cmb_tg
             cut_cmb_tg = cmb_tg[iy:ey, ix:ex]
             #
-            results_tg = new_tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
+            results_tg = tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
                                        nlev_t, beam_arcmin, enmap1=cut_cmb_tg,
                                        enmap2=cut_cmb_tg)
 
@@ -143,14 +147,21 @@ for experiment_name, value in experiments.items():
 
             # Slice cmb_t
             cut_cmb_t = cmb_t[iy:ey, ix:ex]
-            #
-            results_t = new_tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
+            # Slice input kappa
+            cut_inkap = kap_band[iy:ey, ix:ex]
+            # Get inkap_x_inkap
+            inkap_x_inkap = tools.powspec(cut_inkap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)[1]
+
+            # Get reconstruction results
+            results_t = tools.Rec(ellmin, ellmax, Lmin, Lmax, delta_L,
                                       nlev_t, beam_arcmin, enmap1=cut_cmb_t,
                                       enmap2=cut_cmb_t)
-
+            # Get bias
             bias = (results_t['reckap_x_reckap'] -
-                    cl_kappa_tg_ave) / results_t['reckap_x_reckap']
+                    cl_kappa_tg_ave) / inkap_x_inkap
 
+            # Get inkap_x_reckap
+            inkap_x_reckap = tools.powspec(cut_inkap, enmap2=results_t['reckap'], taper_order=4, lmin=Lmin, lmax=Lmax, delta_l=delta_L)[1]
             # Stride across the map, horizontally first and
             # increment vertically when at the end of a row
             if (itile + 1) % num_x != 0:
@@ -159,8 +170,10 @@ for experiment_name, value in experiments.items():
                 ix = 0
                 iy = iy + npix
 
+            st_t.add_to_stats('inkap_x_inkap', inkap_x_inkap)
             st_t.add_to_stats('reckap_x_reckap', results_t['reckap_x_reckap'])
             st_t.add_to_stats('bias', bias)
+            st_t.add_to_stats('inkap_x_reckap', inkap_x_reckap)
             print('tile %s completed, %s tiles in total' %
                   (itile + 1, ntiles))
         st_t.get_stats()
@@ -169,11 +182,15 @@ for experiment_name, value in experiments.items():
         Data_dict = {
             'Ls': results_t['Ls'],
             'reckap_x_reckap': st_t.stats['reckap_x_reckap']['mean'],
-            'reckap_x_reckap_err': st_t.stats['reckap_x_reckap']['err'],
+            'reckap_x_reckap_err': st_t.stats['reckap_x_reckap']['errmean'],
             'bias': st_t.stats['bias']['mean'],
-            'bias_err': st_t.stats['bias']['err'],
+            'bias_err': st_t.stats['bias']['errmean'],
             'norm': results_t['norm'],
-            'noise': results_t['noise_cl']
+            'noise': results_t['noise_cl'],
+            'inkap_x_inkap': st_t.stats['inkap_x_inkap']['mean'],
+            'inkap_x_inkap_err': st_t.stats['inkap_x_inkap']['errmean'],
+            'inkap_x_reckap': st_t.stats['inkap_x_reckap']['mean'],
+            'inkap_x_reckap_err': st_t.stats['inkap_x_reckap']['errmean']
         }
 
 
