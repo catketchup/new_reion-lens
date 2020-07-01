@@ -36,13 +36,14 @@ px_arcmin = config['experiments'].getfloat('px_arcmin')
 ellmin = config['CMB'].getint('ellmin')
 ellmaxs = json.loads(config['CMB'].get('ellmaxs'))
 
+cutouts = int(2*decmax/width_deg*(360/width_deg))
 # Kappa L range
 # delta_L = config['Kappa'].getint('delta_L')
 
 # Use maps provided by websky or Colin
 map_path = 'maps/' + map_source + '/'
 # Path of output data
-data_path = 'output/data/'
+data_path = 'output/data' + str(cutouts) + '/'
 
 # print('bin_width=%s' % (delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width
@@ -91,9 +92,9 @@ for experiment_name, value in experiments.items():
         # lmin, lmax for reconstructed kappa map
         Lmin, Lmax = ellmin, ellmax
         if ellmax == 3000:
-            delta_L = config['Kappa'].getint('delta_L1')
-        else:
-            delat_L = config['Kappa'].getint('delat_L2')
+            delta_L = 150
+        if ellmax == 4000:
+            delat_L = 200
 
         # noise power spectrum
         Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
