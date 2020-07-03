@@ -94,7 +94,7 @@ for experiment_name, value in experiments.items():
         if ellmax == 3000:
             delta_L = 150
         if ellmax == 4000:
-            delat_L = 200
+            delta_L = 200
 
         # noise power spectrum
         Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
