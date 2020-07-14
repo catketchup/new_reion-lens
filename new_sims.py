@@ -11,20 +11,17 @@ from mpi4py import MPI
 import pandas as pd
 import tools
 import ipdb
-import configparser
-import json
-from ast import literal_eval
 import argparse
-
+import params as m
 # Simulate bias of lensing reconstruction from non-Gaussian kSZ
 # experiments configurations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment', type=str, help='experiment name')
 parser.add_argument('--nlev_t',
-                    type=str,
+                    type=float,
                     help='noise level of temperature field')
-parser.add_argument('--beam_arcmin', type=str, help='beam_arcmin')
+parser.add_argument('--beam_arcmin', type=float, help='beam_arcmin')
 parser.add_argument('--ellmin', type=int, help='ellmin of CMB')
 parser.add_argument('--ellmax', type=int, help='ellmax of CMB')
 parser.add_argument('--delta_L', type=int, help='delta_L of Kappa')
@@ -37,19 +34,16 @@ ellmin = args.ellmin
 ellmax = args.ellmax
 delta_L = args.delta_L
 
-# Read in parameters from parameters.ini
-config = configparser.ConfigParser()
-config.read('parameters.ini')
-# maps information
-map_source = config['maps'].get('map_source')
-ksz_type = config['maps'].get('ksz_type')
-decmax = config['maps'].getint('decmax')
-width_deg = int(config['maps']['width_deg'])
+map_source = m.map_source
+ksz_type = m.ksz_type
+decmax = m.decmax
+width_deg = m.width_deg
+px_arcmin = m.px_arcmin
 
-# pixel size in arcmin
-px_arcmin = config['experiments'].getfloat('px_arcmin')
 cutouts = int(2 * decmax / width_deg * (360 / width_deg))
 
+print('%s' %(experiment))
+print('ellmin = %s, ellmax = %s, delta_L = %s' %(ellmin, ellmax, delta_L))
 # Use maps provided by websky or Colin
 map_path = 'maps/' + map_source + '/'
 # Path of output data
@@ -91,6 +85,9 @@ npix = int(width_deg * 60 / px_arcmin)
 ntiles = int(np.prod(band_shape) / npix**2)
 num_x = int(360 / width_deg)
 
+ells = np.arange(0, ellmax, 1)
+# lmin, lmax for reconstructed kappa map
+Lmin, Lmax = ellmin, ellmax
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
 # deconvolved noise power spectrum
 Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
@@ -140,7 +137,7 @@ iy, ix = 0, 0
 print('Begin to get bias for each tile')
 
 # use a dictionary to record ps on each cutout
-Cutout_dict = {}
+Data_dict = {}
 for itile in range(ntiles):
     # ipdb.set_trace()
     # Get bottom-right pixel corner
@@ -189,31 +186,26 @@ for itile in range(ntiles):
     st_t.add_to_stats('reckap_x_reckap', results_t['reckap_x_reckap'])
     st_t.add_to_stats('bias', bias)
     st_t.add_to_stats('inkap_x_reckap', inkap_x_reckap)
-    Cutout_dict['cutout %s' % (itile), results_t['reckap_x_reckap']]
+    Data_dict['cutout %s' % (itile)] = results_t['reckap_x_reckap']
     print('tile %s completed, %s tiles in total' % (itile + 1, ntiles))
 st_t.get_stats()
 
 # Store bias in a dictionary
-Data_dict = {
-    'Ls': results_t['Ls'],
-    'cl_kappa_tg_ave': st_tg.stats['cl_kappa_tg_ave']['mean'],
-    'reckap_x_reckap': st_t.stats['reckap_x_reckap']['mean'],
-    'reckap_x_reckap_err': st_t.stats['reckap_x_reckap']['errmean'],
-    'bias': st_t.stats['bias']['mean'],
-    'bias_err': st_t.stats['bias']['errmean'],
-    'norm': results_t['norm'],
-    'noise': results_t['noise_cl'],
-    'inkap_x_inkap': st_t.stats['inkap_x_inkap']['mean'],
-    'inkap_x_inkap_err': st_t.stats['inkap_x_inkap']['errmean'],
-    'inkap_x_reckap': st_t.stats['inkap_x_reckap']['mean'],
-    'inkap_x_reckap_err': st_t.stats['inkap_x_reckap']['errmean']
-}
 
-Cutout_df = pd.DataFrame(Cutout_dict)
-Cutout_df.to_csv(data_path + 'cutout_' + map_source + '_' + ksz_type +
-                 '_%s_%s_%s.csv' % (experiment_name, ellmin, ellmax),
-                 index=False)
+Data_dict['Ls'] = results_t['Ls']
+Data_dict['cl_kappa_tg_ave'] = cl_kappa_tg_ave
+Data_dict['reckap_x_reckap'] = st_t.stats['reckap_x_reckap']['mean']
+Data_dict['reckap_x_reckap_err'] = st_t.stats['reckap_x_reckap']['errmean']
+Data_dict['bias'] = st_t.stats['bias']['mean']
+Data_dict['bias_err'] = st_t.stats['bias']['errmean']
+Data_dict['norm'] = results_t['norm']
+Data_dict['noise'] = results_t['noise_cl']
+Data_dict['inkap_x_inkap'] = st_t.stats['inkap_x_inkap']['mean']
+Data_dict['inkap_x_inkap_err'] = st_t.stats['inkap_x_inkap']['errmean']
+Data_dict['inkap_x_reckap'] = st_t.stats['inkap_x_inkap']['mean']
+Data_dict['inkap_x_reckap_err'] = st_t.stats['inkap_x_reckap']['errmean']
+
 Data_df = pd.DataFrame(Data_dict)
 Data_df.to_csv(data_path + map_source + '_' + ksz_type + '_%s_%s_%s.csv' %
-               (experiment_name, ellmin, ellmax),
+               (experiment, ellmin, ellmax),
                index=False)

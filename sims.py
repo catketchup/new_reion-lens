@@ -182,6 +182,7 @@ for experiment_name, value in experiments.items():
         # Store bias in a dictionary
         Data_dict = {
             'Ls': results_t['Ls'],
+            'cl_kappa_tg_ave': cl_kappa_tg_ave,
             'reckap_x_reckap': st_t.stats['reckap_x_reckap']['mean'],
             'reckap_x_reckap_err': st_t.stats['reckap_x_reckap']['errmean'],
             'bias': st_t.stats['bias']['mean'],
