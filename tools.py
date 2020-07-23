@@ -41,14 +41,15 @@ def Rec(ellmin,
           beam_arcmin,
           enmap1=None,
           enmap2=None,
-          noise=False):
+          noise=False,
+        ksz_cl=None):
     """ Reconstruct a reckap map or its Fourier map """
     map_shape = enmap1.shape
     map_wcs = enmap1.wcs
     map_modlmap = enmap.modlmap(map_shape, map_wcs)
     ells = np.arange(0, map_modlmap.max() + 1, 1)
     theory = cosmology.default_theory()
-    ctt = theory.lCl('TT', ells)
+    ctt = theory.lCl('TT', ells) + ksz_cl[ells]
     taper, w2 = maps.get_taper_deg(map_shape, map_wcs)
 
     feed_dict = {}
@@ -97,6 +98,8 @@ def Rec(ellmin,
     # reckap power spectrum
     Ls, reckap_x_reckap = powspec_k(reckap_k, taper=taper, taper_order=4, modlmap=map_modlmap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)
 
+    # deflection field k map1_k
+    d_k = reckap_k/(1/2*map_modlmap)
     # deflection field power spectrum
     d_auto_cl = reckap_x_reckap/(1/4*Ls**2)
     # phi power spectrum
@@ -111,14 +114,15 @@ def Rec(ellmin,
         Lmax,
         delta_L,
     )
-    results = {'Ls':Ls, 'reckap':reckap, 'reckap_x_reckap':reckap_x_reckap, 'd_auto_cl':d_auto_cl, 'phi_auto_cl':phi_auto_cl, 'norm':norm, 'noise_cl':noise_cl}
+    results = {'Ls':Ls, 'reckap':reckap, 'reckap_k':reckap_k, 'reckap_x_reckap':reckap_x_reckap, 'd_auto_cl':d_auto_cl, 'phi_auto_cl':phi_auto_cl, 'norm':norm, 'noise_cl':noise_cl}
     return results
+
 
 def powspec_k(enmap1_k, enmap2_k=None, taper=None, taper_order=None, modlmap=None, lmin=None, lmax=None, delta_l=None):
 
     bin_edges = np.arange(lmin, lmax, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)
-
+    weights = (2*modlmap + 1)
     # correct power spectra
     w = np.mean(taper**taper_order)
 
@@ -135,6 +139,7 @@ def powspec(enmap1, enmap2=None, taper_order=2, lmin=None, lmax=None, delta_l=No
     shape = enmap1.shape
     wcs = enmap1.wcs
     modlmap = enmap.modlmap(shape, wcs)
+    weights = (2*modlmap + 1)
 
     bin_edges = np.arange(lmin, lmax, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)

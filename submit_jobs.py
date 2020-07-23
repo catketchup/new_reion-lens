@@ -4,7 +4,7 @@ import sys, os, time
 import params as m
 
 # output directory
-outdir = '/global/cscratch1/sd/hongbo/new_reion-lens/jobs'
+outdir = '/global/cscratch1/sd/hongbo/new_reion-lens/'
 if not(os.path.isdir):os.makedirs(outdir)
 
 f = open('%s/submit_jobs.sh' %(outdir), 'w')
