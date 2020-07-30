@@ -100,6 +100,7 @@ cmb_tg = cmb_band + ksz_g_band + noise_band
 st_tg = stats.Stats()
 iy, ix = 0, 0
 print('Begin to get <cl_kappa_tg_ave>')
+Data_dict = {}
 for itile in range(ntiles):
     # Get bottom-right pixel corner
     ex = ix + npix
@@ -129,6 +130,7 @@ for itile in range(ntiles):
         iy = iy + npix
     st_tg.add_to_stats('reckap_x_reckap', results_tg['reckap_x_reckap'])
     st_tg.add_to_stats('d_auto_cl', results_tg['d_auto_cl'])
+    Data_dict['cutout %s g' % (itile)] = results_tg['reckap_x_reckap']
 st_tg.get_stats()
 cl_kappa_tg_ave = st_tg.stats['reckap_x_reckap']['mean']
 cl_kappa_tg_ave_err = st_tg.stats['reckap_x_reckap']['errmean']
@@ -140,7 +142,6 @@ iy, ix = 0, 0
 print('Begin to get bias for each tile')
 
 # use a dictionary to record ps on each cutout
-Data_dict = {}
 for itile in range(ntiles):
     # ipdb.set_trace()
     # Get bottom-right pixel corner

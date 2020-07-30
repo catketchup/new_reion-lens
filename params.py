@@ -4,7 +4,7 @@ runtime = '00:30:00'
 map_source = 'Colin'
 ksz_type = 'lt'
 decmax = 45
-width_deg = 30
+width_deg = 10
 px_arcmin = 1
 # cutouts number
 cutouts = int(2*decmax/width_deg*(360/width_deg))
