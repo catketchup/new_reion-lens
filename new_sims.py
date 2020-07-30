@@ -40,14 +40,15 @@ decmax = m.decmax
 width_deg = m.width_deg
 px_arcmin = m.px_arcmin
 
-cutouts = int(2 * decmax / width_deg * (360 / width_deg))
+cutouts = m.cutouts
 
 print('%s' %(experiment))
 print('ellmin = %s, ellmax = %s, delta_L = %s' %(ellmin, ellmax, delta_L))
+
 # Use maps provided by websky or Colin
-map_path = 'maps/' + map_source + '/'
+map_path = m.map_path
 # Path of output data
-data_path = 'output/data' + str(cutouts) + '/'
+data_path = m.data_path
 
 # print('bin_width=%s' % (delta_L))
 # Let's define a cut-sky cylindrical geometry with 1 arcminute pixel width

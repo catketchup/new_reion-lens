@@ -6,9 +6,15 @@ ksz_type = 'lt'
 decmax = 45
 width_deg = 10
 px_arcmin = 1
-# cutouts number
-cutouts = int(2*decmax/width_deg*(360/width_deg))
+map_path = '/global/cscratch1/sd/hongbo/new_reion-lens/maps/' + map_source + '/'
 
+# cutouts number
+cutouts = int(2 * decmax / width_deg * (360 / width_deg))
+
+# output data path
+data_path = 'output/data' + str(cutouts) + '/'
+
+# experiments
 experiments = {
     'Planck_SMICA': {
         'nlev_t': 45,
