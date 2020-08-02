@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH -t 00:30:00
+#SBATCH -t 00:05:00
 #SBATCH --ntasks-per-node=12
 #SBATCH --license=SCRATCH
 OMP_NUM_THREADS=3 python new_sims.py --experiment 'Planck_SMICA' --nlev_t 45 --beam_arcmin 5 --ellmin 30 --ellmax 3000 --delta_L 150 & sleep 1

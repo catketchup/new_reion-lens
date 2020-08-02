@@ -1,4 +1,4 @@
-runtime = '00:30:00'
+runtime = '00:05:00'
 
 # maps information
 map_source = 'Colin'

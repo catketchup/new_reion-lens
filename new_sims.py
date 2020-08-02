@@ -86,7 +86,7 @@ npix = int(width_deg * 60 / px_arcmin)
 ntiles = int(np.prod(band_shape) / npix**2)
 num_x = int(360 / width_deg)
 
-ells = np.arange(0, ellmax, 1)
+ells = np.arange(0, ellmax+1, 1)
 # lmin, lmax for reconstructed kappa map
 Lmin, Lmax = ellmin, ellmax
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
@@ -95,7 +95,7 @@ Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
 # deconvolved noise band map
 noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
 
-ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
+# ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
 # cmb_tg
 cmb_tg = cmb_band + ksz_g_band + noise_band
 st_tg = stats.Stats()
