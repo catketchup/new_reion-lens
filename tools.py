@@ -71,8 +71,8 @@ def Rec(ellmin,
     enmap1_k = enmap.fft(enmap1, normalize='phys')
     enmap2_k = enmap.fft(enmap2, normalize='phys')
 
-    feed_dict['X'] = enmap1_k
-    feed_dict['Y'] = enmap2_k
+    feed_dict['X'] = enmap1_k/flsims.kbeam
+    feed_dict['Y'] = enmap2_k/flsims.kbeam
 
     # unnormalized lensing map in fourier space
     ukappa_k = s.unnormalized_quadratic_estimator(map_shape,
@@ -175,6 +175,8 @@ def binave(map, modlmap, ellmin, ellmax, delta_l):
 
     centers, p1d = binner.bin(map)
     return centers, p1d
+
+
 
 # class rec():
 #     def __init__(self,

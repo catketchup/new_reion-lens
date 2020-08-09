@@ -89,15 +89,29 @@ num_x = int(360 / width_deg)
 ells = np.arange(0, ellmax+1, 1)
 # lmin, lmax for reconstructed kappa map
 Lmin, Lmax = ellmin, ellmax
+# noise power spectrum
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
 # deconvolved noise power spectrum
-Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
-# deconvolved noise band map
+# Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
+
+# noise band map
 noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
 
 ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
+# cmb_t
+theory = cosmology.default_theory()
+flsims = lensing.FlatLensingSims(band_shape, band_wcs, theory, beam_arcmin, nlev_t)
+kbeam = flsims.kbeam
+
+cmb_t = maps.filter_map((cmb_band + ksz_band), kbeam) + noise_band
+
 # cmb_tg
-cmb_tg = cmb_band + ksz_g_band + noise_band
+cmb_tg = maps.filter_map((cmb_band + ksz_g_band), kbeam) + noise_band
+
+
+
+
+
 st_tg = stats.Stats()
 iy, ix = 0, 0
 print('Begin to get <cl_kappa_tg_ave>')
@@ -136,8 +150,7 @@ st_tg.get_stats()
 cl_kappa_tg_ave = st_tg.stats['reckap_x_reckap']['mean']
 cl_kappa_tg_ave_err = st_tg.stats['reckap_x_reckap']['errmean']
 
-# cmb_t
-cmb_t = cmb_band + ksz_band + noise_band
+
 st_t = stats.Stats()
 iy, ix = 0, 0
 print('Begin to get bias for each tile')
