@@ -50,9 +50,9 @@ def Rec(ellmin,
     ells = np.arange(0, map_modlmap.max() + 1, 1)
     theory = cosmology.default_theory()
     cltt = theory.lCl('TT', map_modlmap)
-    flsims = lensing.FlatLensingSims(map_shape, map_wcs, theory, beam_arcmin, nlev)
+    kbeam = maps.gauss_beam(map_modlmap,beam_arcmin)
     # deconvolved noise kmap
-    n2d = (nlev*np.pi/180./60.)**2./flsims.kbeam**2.
+    n2d = (nlev*np.pi/180./60.)**2./kbeam**2.
 
 
     taper, w2 = maps.get_taper_deg(map_shape, map_wcs)
@@ -71,8 +71,8 @@ def Rec(ellmin,
     enmap1_k = enmap.fft(enmap1, normalize='phys')
     enmap2_k = enmap.fft(enmap2, normalize='phys')
 
-    feed_dict['X'] = enmap1_k/flsims.kbeam
-    feed_dict['Y'] = enmap2_k/flsims.kbeam
+    feed_dict['X'] = enmap1_k/kbeam
+    feed_dict['Y'] = enmap2_k/kbeam
 
     # unnormalized lensing map in fourier space
     ukappa_k = s.unnormalized_quadratic_estimator(map_shape,
@@ -175,7 +175,6 @@ def binave(map, modlmap, ellmin, ellmax, delta_l):
 
     centers, p1d = binner.bin(map)
     return centers, p1d
-
 
 
 # class rec():

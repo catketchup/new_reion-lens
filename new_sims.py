@@ -33,6 +33,7 @@ beam_arcmin = args.beam_arcmin
 ellmin = args.ellmin
 ellmax = args.ellmax
 delta_L = args.delta_L
+Lmin, Lmax = ellmin, ellmax
 
 map_source = m.map_source
 ksz_type = m.ksz_type
@@ -58,59 +59,50 @@ data_path = m.data_path
 # shape and wcs  of the band
 band_shape, band_wcs = enmap.band_geometry(dec_cut=np.deg2rad(decmax),
                                            res=np.deg2rad(px_arcmin / 60.))
-
 band_modlmap = enmap.modlmap(band_shape, band_wcs)
-
-# Read in cmb_alm
-print('reading in CMB map')
-cmb_alm = hp.read_alm(map_path + 'lensed_cmb_alm.fits', hdu=1)
-# Get cmb band map
-cmb_band = curvedsky.alm2map(cmb_alm, enmap.empty(band_shape, band_wcs))
-
-# Read in ksz_alm and get ksz band map
-print('reading in %s %s kSZ map' % (map_source, ksz_type))
-ksz_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_alm.fits')
-ksz_band = curvedsky.alm2map(ksz_alm, enmap.empty(band_shape, band_wcs))
-
-# Read in ksz_g_alm  and get ksz_g_band map, 'g' is for gaussian
-print('reading in ksz_g map')
-ksz_g_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_g_alm_6000.fits')
-ksz_g_band = curvedsky.alm2map(ksz_g_alm, enmap.empty(band_shape, band_wcs))
-
-# Read in input kappa map for cross correlation check
-print('reading in kappa map')
-kap_alm = hp.read_alm(map_path + 'kappa_alm.fits')
-kap_band = curvedsky.alm2map(kap_alm, enmap.empty(band_shape, band_wcs))
 
 npix = int(width_deg * 60 / px_arcmin)
 ntiles = int(np.prod(band_shape) / npix**2)
 num_x = int(360 / width_deg)
 
 ells = np.arange(0, ellmax+1, 1)
-# lmin, lmax for reconstructed kappa map
-Lmin, Lmax = ellmin, ellmax
+
 # noise power spectrum
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
-# deconvolved noise power spectrum
-# Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
-
 # noise band map
-noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
+noise_map = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
+# Generate kbeam
+kbeam = maps.gauss_beam(band_modlmap,beam_arcmin)
+
+# Read in cmb_alm
+print('reading in CMB map')
+cmb_alm = hp.read_alm(map_path + 'lensed_cmb_alm.fits', hdu=1)
+
+# Read in ksz_alm
+ksz_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_alm.fits')
+# beamed map
+imap_alm_beamed = hp.almxfl(cmb_alm+ksz_alm, kbeam)
+# Generate beamed map
+imap_beamed = curvedsky.alm2map(imap_alm_beamed, enmap.empty(band_shape, band_wcs))
+# cmb_t, t for total
+cmb_t = imap_beamed + noise_map
+
+
+# Read in ksz_g_alm, g for gaussian
+ksz_g_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_g_alm_6000.fits')
+# beamed map
+imap_g_alm_beamed = hp.almxfl(cmb_alm+ksz_g_alm, kbeam)
+# Generate beamed map
+imap_g_beamed = curvedsky.alm2map(imap_g_alm_beamed, enmap.empty(band_shape, band_wcs))
+# cmb_tg, t for total, g for Guassian
+cmb_tg = imap_g_beamed + noise_map
+
+# Read in input kappa map for cross correlation check
+print('reading in kappa map')
+kap_alm = hp.read_alm(map_path + 'kappa_alm.fits')
+kap_band = curvedsky.alm2map(kap_alm, enmap.empty(band_shape, band_wcs))
 
 ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
-# cmb_t
-theory = cosmology.default_theory()
-flsims = lensing.FlatLensingSims(band_shape, band_wcs, theory, beam_arcmin, nlev_t)
-kbeam = flsims.kbeam
-
-cmb_t = maps.filter_map((cmb_band + ksz_band), kbeam) + noise_band
-
-# cmb_tg
-cmb_tg = maps.filter_map((cmb_band + ksz_g_band), kbeam) + noise_band
-
-
-
-
 
 st_tg = stats.Stats()
 iy, ix = 0, 0
