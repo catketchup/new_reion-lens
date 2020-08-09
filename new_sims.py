@@ -71,8 +71,6 @@ ells = np.arange(0, ellmax+1, 1)
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
 # noise band map
 noise_map = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
-# Generate kbeam
-kbeam = maps.gauss_beam(band_modlmap,beam_arcmin)
 
 # Read in cmb_alm
 print('reading in CMB map')
@@ -81,21 +79,21 @@ cmb_alm = hp.read_alm(map_path + 'lensed_cmb_alm.fits', hdu=1)
 # Read in ksz_alm
 ksz_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_alm.fits')
 # beamed map
-imap_alm_beamed = hp.almxfl(cmb_alm+ksz_alm, kbeam)
+cmb_t_alm = hp.smoothalm(cmb_alm[0:len(ksz_alm)]+ksz_alm, fwhm=beam_arcmin)
 # Generate beamed map
-imap_beamed = curvedsky.alm2map(imap_alm_beamed, enmap.empty(band_shape, band_wcs))
+beamed_t_map = curvedsky.alm2map(cmb_t_alm, enmap.empty(band_shape, band_wcs))
 # cmb_t, t for total
-cmb_t = imap_beamed + noise_map
+cmb_t = beamed_t_map + noise_map
 
 
 # Read in ksz_g_alm, g for gaussian
 ksz_g_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_g_alm_6000.fits')
 # beamed map
-imap_g_alm_beamed = hp.almxfl(cmb_alm+ksz_g_alm, kbeam)
+cmb_tg_alm = hp.smoothalm(cmb_alm[0:len(ksz_g_alm)]+ksz_g_alm, fwhm=beam_arcmin)
 # Generate beamed map
-imap_g_beamed = curvedsky.alm2map(imap_g_alm_beamed, enmap.empty(band_shape, band_wcs))
+beamed_tg_map = curvedsky.alm2map(cmb_tg_alm, enmap.empty(band_shape, band_wcs))
 # cmb_tg, t for total, g for Guassian
-cmb_tg = imap_g_beamed + noise_map
+cmb_tg = beamed_tg_map + noise_map
 
 # Read in input kappa map for cross correlation check
 print('reading in kappa map')
