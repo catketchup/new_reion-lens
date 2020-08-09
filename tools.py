@@ -49,15 +49,18 @@ def Rec(ellmin,
     map_modlmap = enmap.modlmap(map_shape, map_wcs)
     ells = np.arange(0, map_modlmap.max() + 1, 1)
     theory = cosmology.default_theory()
-    ctt = theory.lCl('TT', ells) + ksz_cl[ells]
+    cltt = theory.lCl('TT', map_modlmap)
+    flsims = lensing.FlatLensingSims(map_shape, map_wcs, theory, beam_arcmin, nlev)
+    # deconvolved noise kmap
+    n2d = (nlev*np.pi/180./60.)**2./flsims.kbeam**2.
+
+
     taper, w2 = maps.get_taper_deg(map_shape, map_wcs)
 
     feed_dict = {}
-    feed_dict['uC_T_T'] = utils.interp(ells, ctt)(map_modlmap)
-    feed_dict['tC_T_T'] = utils.interp(
-        ells,
-        ctt)(map_modlmap) + (nlev * np.pi / 180. / 60.)**2. / utils.gauss_beam(
-            map_modlmap, beam_arcmin)**2
+    feed_dict['uC_T_T'] = cltt
+    feed_dict['tC_T_T'] = cltt + n2d
+
 
     cmask = utils.mask_kspace(map_shape, map_wcs, lmin=ellmin, lmax=ellmax)
     kmask = utils.mask_kspace(map_shape, map_wcs, lmin=Lmin, lmax=Lmax)
@@ -98,6 +101,10 @@ def Rec(ellmin,
     # reckap power spectrum
     Ls, reckap_x_reckap = powspec_k(reckap_k, taper=taper, taper_order=4, modlmap=map_modlmap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)
 
+    Ls, ureckap_x_ureckap = powspec_k(ukappa_k, taper=taper, taper_order=4, modlmap=map_modlmap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)
+
+    Ls, norm_x_norm = powspec_k(norm_k, taper=taper, taper_order=4, modlmap=map_modlmap, lmin=Lmin, lmax=Lmax, delta_l=delta_L)
+
     # deflection field k map1_k
     d_k = reckap_k/(1/2*map_modlmap)
     # deflection field power spectrum
@@ -114,15 +121,15 @@ def Rec(ellmin,
         Lmax,
         delta_L,
     )
-    results = {'Ls':Ls, 'reckap':reckap, 'reckap_k':reckap_k, 'reckap_x_reckap':reckap_x_reckap, 'd_auto_cl':d_auto_cl, 'phi_auto_cl':phi_auto_cl, 'norm':norm, 'noise_cl':noise_cl}
+    results = {'Ls':Ls, 'reckap':reckap, 'reckap_k':reckap_k, 'reckap_x_reckap':reckap_x_reckap, 'ureckap_x_ureckap':ureckap_x_ureckap, 'norm_x_norm':norm_x_norm, 'd_auto_cl':d_auto_cl, 'phi_auto_cl':phi_auto_cl, 'norm':norm, 'noise_cl':noise_cl}
     return results
 
 
 def powspec_k(enmap1_k, enmap2_k=None, taper=None, taper_order=None, modlmap=None, lmin=None, lmax=None, delta_l=None):
 
-    bin_edges = np.arange(lmin, lmax, delta_l)
+    bin_edges = np.arange(lmin, lmax+delta_l+1, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)
-    weights = (2*modlmap + 1)
+
     # correct power spectra
     w = np.mean(taper**taper_order)
 
@@ -141,7 +148,7 @@ def powspec(enmap1, enmap2=None, taper_order=2, lmin=None, lmax=None, delta_l=No
     modlmap = enmap.modlmap(shape, wcs)
     weights = (2*modlmap + 1)
 
-    bin_edges = np.arange(lmin, lmax, delta_l)
+    bin_edges = np.arange(lmin, lmax +delta_l+1, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)
     taper, w2 = maps.get_taper_deg(shape, wcs)
     # w is for correction of powerspectrum
@@ -162,39 +169,39 @@ def powspec(enmap1, enmap2=None, taper_order=2, lmin=None, lmax=None, delta_l=No
     return centers, p1d
 
 
-def binave(map, modlmap, ellmin, ellmax, delta_ell):
-    bin_edges = np.arange(ellmin, ellmax, delta_ell)
+def binave(map, modlmap, ellmin, ellmax, delta_l):
+    bin_edges = np.arange(ellmin, ellmax+delta_l+1, delta_l)
     binner = utils.bin2D(modlmap, bin_edges)
 
     centers, p1d = binner.bin(map)
     return centers, p1d
 
-class rec():
-    def __init__(self,
-                 ellmin,
-                 ellmax,
-                 Lmin,
-                 Lmax,
-                 delta,
-                 nlev,
-                 beam_arcmin,
-                 enmap1=None,
-                 enmap2=None):
+# class rec():
+#     def __init__(self,
+#                  ellmin,
+#                  ellmax,
+#                  Lmin,
+#                  Lmax,
+#                  delta,
+#                  nlev,
+#                  beam_arcmin,
+#                  enmap1=None,
+#                  enmap2=None):
 
-        self.ellmin = ellmin
-        self.ellmax = ellmax
-        self.Lmin = Lmin
-        self.Lmax = Lmax
-        self.delta = delta
-        self.nlev = nlev
-        self.beam_arcmin = beam_arcmin
-        self.enmap1 = enmap1
-        self.enmap2 = enmap2
+#         self.ellmin = ellmin
+#         self.ellmax = ellmax
+#         self.Lmin = Lmin
+#         self.Lmax = Lmax
+#         self.delta = delta
+#         self.nlev = nlev
+#         self.beam_arcmin = beam_arcmin
+#         self.enmap1 = enmap1
+#         self.enmap2 = enmap2
 
-    def reckap(self):
-        return reckap(self.ellmin, self.ellmax, self.Lmin, self.Lmax,
-                     self.delta_L, self.nlev, self.beam_arcmin, self.enmap1,
-                     self.enmap2)
+#     def reckap(self):
+#         return reckap(self.ellmin, self.ellmax, self.Lmin, self.Lmax,
+#                      self.delta_L, self.nlev, self.beam_arcmin, self.enmap1,
+#                      self.enmap2)
 
-    def phi_auto_cl(self):
-        return 0
+#     def phi_auto_cl(self):
+#         return 0

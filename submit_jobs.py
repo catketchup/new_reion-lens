@@ -7,12 +7,17 @@ import params as m
 outdir = '/global/cscratch1/sd/hongbo/new_reion-lens/'
 if not(os.path.isdir):os.makedirs(outdir)
 
-f = open('%s/submit_jobs.sh' %(outdir), 'w')
-f.write('#!/bin/bash\n')
-f.write('#SBATCH -N 1\n')
-f.write('#SBATCH -t %s\n' %(m.runtime))
-f.write( '#SBATCH --ntasks-per-node=12\n')
-f.write('#SBATCH --license=SCRATCH\n')
+
+if m.interactive:
+    f = open('%s/i_submit_jobs.sh' %(outdir), 'w')
+    f.write('#!/bin/bash\n')
+else:
+    f = open('%s/submit_jobs.sh' %(outdir), 'w')
+    f.write('#!/bin/bash\n')
+    f.write('#SBATCH -N 1\n')
+    f.write('#SBATCH -t %s\n' %(m.runtime))
+    f.write( '#SBATCH --ntasks-per-node=12\n')
+    f.write('#SBATCH --license=SCRATCH\n')
 
 for experiment_name, values  in m.experiments.items():
     for groups, moment in m.moments.items():
@@ -26,4 +31,8 @@ for experiment_name, values  in m.experiments.items():
 
 f.write('wait\n')
 f.close()
-os.system("sbatch -C $CRAY_CPU_TARGET %s/submit_jobs.sh\n" % (outdir))
+
+if m.interactive:
+    os.system("bash %s/i_submit_jobs.sh\n" % (outdir))
+else:
+    os.system("sbatch -C $CRAY_CPU_TARGET %s/submit_jobs.sh\n" % (outdir))

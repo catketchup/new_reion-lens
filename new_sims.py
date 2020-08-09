@@ -95,7 +95,7 @@ Cl_noise_TT = Cl_noise_TT / utils.gauss_beam(ells, beam_arcmin)**2
 # deconvolved noise band map
 noise_band = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
 
-# ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
+ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
 # cmb_tg
 cmb_tg = cmb_band + ksz_g_band + noise_band
 st_tg = stats.Stats()
@@ -172,7 +172,7 @@ for itile in range(ntiles):
                           ksz_cl=ksz_cl)
     # Get bias
     bias = (results_t['reckap_x_reckap'] - cl_kappa_tg_ave) / inkap_x_inkap
-
+    # bias = (results_t['reckap_x_reckap'] - cl_kappa_tg_ave) / (results_t['reckap_x_reckap'] - results_t['noise_cl'])
     # Get inkap_x_reckap
     inkap_x_reckap = tools.powspec(cut_inkap,
                                    enmap2=results_t['reckap'],
@@ -190,6 +190,8 @@ for itile in range(ntiles):
 
     st_t.add_to_stats('inkap_x_inkap', inkap_x_inkap)
     st_t.add_to_stats('reckap_x_reckap', results_t['reckap_x_reckap'])
+    st_t.add_to_stats('ureckap_x_ureckap', results_t['ureckap_x_ureckap'])
+    st_t.add_to_stats('norm_x_norm', results_t['norm_x_norm'])
     st_t.add_to_stats('bias', bias)
     st_t.add_to_stats('inkap_x_reckap', inkap_x_reckap)
     Data_dict['cutout %s' % (itile)] = results_t['reckap_x_reckap']
@@ -203,6 +205,10 @@ Data_dict['cl_kappa_tg_ave'] = cl_kappa_tg_ave
 Data_dict['cl_kappa_tg_ave_err'] = cl_kappa_tg_ave_err
 Data_dict['reckap_x_reckap'] = st_t.stats['reckap_x_reckap']['mean']
 Data_dict['reckap_x_reckap_err'] = st_t.stats['reckap_x_reckap']['errmean']
+Data_dict['ureckap_x_ureckap'] = st_t.stats['ureckap_x_ureckap']['mean']
+Data_dict['ureckap_x_ureckap_err'] = st_t.stats['ureckap_x_ureckap']['errmean']
+Data_dict['norm_x_norm'] = st_t.stats['norm_x_norm']['mean']
+Data_dict['norm_x_norm_err'] = st_t.stats['norm_x_norm']['errmean']
 Data_dict['bias'] = st_t.stats['bias']['mean']
 Data_dict['bias_err'] = st_t.stats['bias']['errmean']
 Data_dict['d_auto_cl'] = st_tg.stats['d_auto_cl']['mean']
