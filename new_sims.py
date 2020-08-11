@@ -70,41 +70,55 @@ ells = np.arange(0, ellmax+1, 1)
 # noise power spectrum
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
 # noise band map
-noise_map = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
+noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
 
-# Read in cmb_alm
+# Read in cmb_alms
 print('reading in CMB map')
-cmb_alm = hp.read_alm(map_path + 'lensed_cmb_alm.fits', hdu=1)
+cmb_alms_file = m.cmb_alms_file
+cmb_alms = hp.read_alm(cmb_alms_file)
 
-# Read in ksz_alm
-ksz_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_alm.fits')
-# beamed map
-cmb_t_alm = hp.smoothalm(cmb_alm[0:len(ksz_alm)]+ksz_alm, fwhm=beam_arcmin)
+# Read in ksz_alms
+ksz_alms_file = m.ksz_alms_file
+ksz_alms = hp.read_alm(ksz_alms_file)
+
+# Read in ksz_g_alms, g for Guassian
+ksz_g_alms_files = m.ksz_g_alms_files
+ksz_g_alms = hp.read_alm(ksz_g_alms_files)
+
+
+
+# beamed cmb_t map, t for total
+cmb_t_alms = hp.smoothalm(cmb_alms+ksz_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
 # Generate beamed map
-beamed_t_map = curvedsky.alm2map(cmb_t_alm, enmap.empty(band_shape, band_wcs))
+beamed_t = curvedsky.alm2map(cmb_t_alms, enmap.empty(band_shape, band_wcs))
 # cmb_t, t for total
-cmb_t = beamed_t_map + noise_map
+cmb_t = beamed_t + noise
 
-
-# Read in ksz_g_alm, g for gaussian
-ksz_g_alm = hp.read_alm(map_path + f'ksz_{ksz_type}_g_alm_6000.fits')
-# beamed map
-cmb_tg_alm = hp.smoothalm(cmb_alm[0:len(ksz_g_alm)]+ksz_g_alm, fwhm=beam_arcmin)
+# beamed cmb_tg map, tg for total Gaussian
+cmb_tg_alms = hp.smoothalm(cmb_alms+ksz_g_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
 # Generate beamed map
-beamed_tg_map = curvedsky.alm2map(cmb_tg_alm, enmap.empty(band_shape, band_wcs))
+beamed_tg = curvedsky.alm2map(cmb_tg_alms, enmap.empty(band_shape, band_wcs))
 # cmb_tg, t for total, g for Guassian
-cmb_tg = beamed_tg_map + noise_map
+cmb_tg = beamed_tg + noise
+
+
+
 
 # Read in input kappa map for cross correlation check
 print('reading in kappa map')
-kap_alm = hp.read_alm(map_path + 'kappa_alm.fits')
-kap_band = curvedsky.alm2map(kap_alm, enmap.empty(band_shape, band_wcs))
+kap_alms_file = m.kap_alms_file
+kap_alms = hp.read_alm(kap_alms_file)
+kap = curvedsky.alm2map(kap_alms, enmap.empty(band_shape, band_wcs))
 
-ksz_cl = pd.read_csv('maps/Colin/smooth_ksz_cl.csv')['Cl']
+# Read in ksz_cls
+ksz_cls_file = m.ksz_cls_file
+ksz_cls = pd.read_csv(ksz_cls_file)['cls']
+
+
 
 st_tg = stats.Stats()
 iy, ix = 0, 0
-print('Begin to get <cl_kappa_tg_ave>')
+print('Begin to get reckap_x_reckap_tg_ave')
 Data_dict = {}
 for itile in range(ntiles):
     # Get bottom-right pixel corner
@@ -123,7 +137,7 @@ for itile in range(ntiles):
                            beam_arcmin,
                            enmap1=cut_cmb_tg,
                            enmap2=cut_cmb_tg,
-                           ksz_cl=ksz_cl)
+                           ksz_cls=ksz_cls)
 
     # Stride across the map, horizontally first and
     # increment vertically when at the end of a row
@@ -137,8 +151,8 @@ for itile in range(ntiles):
     st_tg.add_to_stats('d_auto_cl', results_tg['d_auto_cl'])
     Data_dict['cutout %s g' % (itile)] = results_tg['reckap_x_reckap']
 st_tg.get_stats()
-cl_kappa_tg_ave = st_tg.stats['reckap_x_reckap']['mean']
-cl_kappa_tg_ave_err = st_tg.stats['reckap_x_reckap']['errmean']
+reckap_x_reckap_tg_ave = st_tg.stats['reckap_x_reckap']['mean']
+reckap_x_reckap_tg_ave_err = st_tg.stats['reckap_x_reckap']['errmean']
 
 
 st_t = stats.Stats()
@@ -155,7 +169,7 @@ for itile in range(ntiles):
     # Slice cmb_t
     cut_cmb_t = cmb_t[iy:ey, ix:ex]
     # Slice input kappa
-    cut_inkap = kap_band[iy:ey, ix:ex]
+    cut_inkap = kap[iy:ey, ix:ex]
     # Get inkap_x_inkap
     inkap_x_inkap = tools.powspec(cut_inkap,
                                   lmin=Lmin,
@@ -172,10 +186,10 @@ for itile in range(ntiles):
                           beam_arcmin,
                           enmap1=cut_cmb_t,
                           enmap2=cut_cmb_t,
-                          ksz_cl=ksz_cl)
+                          ksz_cls=ksz_cls)
     # Get bias
-    bias = (results_t['reckap_x_reckap'] - cl_kappa_tg_ave) / inkap_x_inkap
-    # bias = (results_t['reckap_x_reckap'] - cl_kappa_tg_ave) / (results_t['reckap_x_reckap'] - results_t['noise_cl'])
+    bias = (results_t['reckap_x_reckap'] - reckap_x_reckap_tg_ave) / inkap_x_inkap
+
     # Get inkap_x_reckap
     inkap_x_reckap = tools.powspec(cut_inkap,
                                    enmap2=results_t['reckap'],
@@ -204,8 +218,8 @@ st_t.get_stats()
 # Store bias in a dictionary
 
 Data_dict['Ls'] = results_t['Ls']
-Data_dict['cl_kappa_tg_ave'] = cl_kappa_tg_ave
-Data_dict['cl_kappa_tg_ave_err'] = cl_kappa_tg_ave_err
+Data_dict['reckap_x_reckap_tg_ave'] = reckap_x_reckap_tg_ave
+Data_dict['reckap_x_reckap_tg_ave_err'] = reckap_x_reckap_tg_ave_err
 Data_dict['reckap_x_reckap'] = st_t.stats['reckap_x_reckap']['mean']
 Data_dict['reckap_x_reckap_err'] = st_t.stats['reckap_x_reckap']['errmean']
 Data_dict['ureckap_x_ureckap'] = st_t.stats['ureckap_x_ureckap']['mean']

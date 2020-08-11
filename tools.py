@@ -42,7 +42,7 @@ def Rec(ellmin,
           enmap1=None,
           enmap2=None,
           noise=False,
-        ksz_cl=None):
+        ksz_cls=None):
     """ Reconstruct a reckap map or its Fourier map """
     map_shape = enmap1.shape
     map_wcs = enmap1.wcs

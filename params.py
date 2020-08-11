@@ -8,7 +8,17 @@ ksz_type = 'lt'
 decmax = 45
 width_deg = 10
 px_arcmin = 1
-map_path = '/global/cscratch1/sd/hongbo/new_reion-lens/maps/' + map_source + '/'
+path = '/global/cscratch1/sd/hongbo/new_reion-lens/'
+map_path = path + 'maps/' + map_source + '/'
+
+# alms fits files
+cmb_alms_file = map_path + 'alms/' + 'lensed_cmb_alms_7000.fits'
+ksz_alms_file = map_path +  'alms/' + f'ksz_{ksz_type}_alms_7000.fits'
+ksz_g_alms_files = map_path + 'alms/' + f'ksz_g_{ksz_type}_alms_7000.fits'
+kap_alms_file = map_path + 'alms/' + 'kap_alms_7000.fits'
+
+# ksz_g_cls
+ksz_cls_file = map_path + 'cls/' + 'ksz_lt_cls_7000.csv'
 
 # cutouts number
 cutouts = int(2 * decmax / width_deg * (360 / width_deg))
