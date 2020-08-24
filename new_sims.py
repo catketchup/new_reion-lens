@@ -67,6 +67,7 @@ num_x = int(360 / width_deg)
 
 ells = np.arange(0, ellmax+1, 1)
 
+
 # noise power spectrum
 Cl_noise_TT = (nlev_t * np.pi / 180. / 60.)**2 * np.ones(ells.shape)
 # noise band map
@@ -86,23 +87,50 @@ ksz_g_alms_files = m.ksz_g_alms_files
 ksz_g_alms = hp.read_alm(ksz_g_alms_files)
 
 
+beam = m.beam
+use_ksz_g = m.use_ksz_g
 
-# beamed cmb_t map, t for total
-cmb_t_alms = hp.smoothalm(cmb_alms+ksz_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
-# Generate beamed map
-beamed_t = curvedsky.alm2map(cmb_t_alms, enmap.empty(band_shape, band_wcs))
-# cmb_t, t for total
-cmb_t = beamed_t + noise
+if  beam == True:
+    # beamed cmb_t map, t for total
+    cmb_t_alms = hp.smoothalm(cmb_alms+ksz_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
+    # beamed cmb_tg map, tg for total Gaussian
+    cmb_tg_alms = hp.smoothalm(cmb_alms+ksz_g_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
 
-# beamed cmb_tg map, tg for total Gaussian
-cmb_tg_alms = hp.smoothalm(cmb_alms+ksz_g_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
-# Generate beamed map
-beamed_tg = curvedsky.alm2map(cmb_tg_alms, enmap.empty(band_shape, band_wcs))
-# cmb_tg, t for total, g for Guassian
-cmb_tg = beamed_tg + noise
+    # Generate beamed_t map, t for total
+    beamed_t = curvedsky.alm2map(cmb_t_alms, enmap.empty(band_shape, band_wcs))
+    # Generate beamed_tg map, tg for total, g for Gaussian
+    beamed_tg = curvedsky.alm2map(cmb_tg_alms, enmap.empty(band_shape, band_wcs))
 
+    # cmb_t, t for total
+    cmb_t = beamed_t + noise
+    # cmb_tg, t for total, g for Gaussian
+    cmb_tg = beamed_tg + noise
 
+    # deconvolve in reconstruction
+    deconvolve = True
 
+else:
+    # lensed cmb
+    cmb = curvedsky.alm2map(cmb_alms, enmap.empty(band_shape, band_wcs))
+
+    # generate deconvolved noise
+    Cl_noise_TT = Cl_noise_TT/utils.gauss_beam(ells, beam_arcmin)**2
+    noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
+
+    # generate ksz and ksz_g, g for Gaussian
+    ksz = curvedsky.alm2map(ksz_alms, enmap.empty(band_shape, band_wcs))
+    ksz_g = curvedsky.alm2map(ksz_g_alms, enmap.empty(band_shape, band_wcs))
+
+    # cmb_t, t for total
+    cmb_t = cmb + ksz + noise
+    if use_ksz_g == True:
+        # cmb_tg, t for total, g for Gaussian
+        cmb_tg = cmb + ksz_g + noise
+    else:
+        cmb_tg = cmb + noise
+
+    # don't deconvolve in reconstruction
+    deconvolve = False
 
 # Read in input kappa map for cross correlation check
 print('reading in kappa map')
@@ -114,6 +142,10 @@ kap = curvedsky.alm2map(kap_alms, enmap.empty(band_shape, band_wcs))
 ksz_cls_file = m.ksz_cls_file
 ksz_cls = pd.read_csv(ksz_cls_file)['cls']
 
+if use_ksz_g == True:
+    ksz_g_cls = ksz_cls
+else:
+    ksz_g_cls = None
 
 
 st_tg = stats.Stats()
@@ -137,7 +169,8 @@ for itile in range(ntiles):
                            beam_arcmin,
                            enmap1=cut_cmb_tg,
                            enmap2=cut_cmb_tg,
-                           ksz_cls=ksz_cls)
+                           ksz_cls=ksz_g_cls,
+                           deconvolve=deconvolve)
 
     # Stride across the map, horizontally first and
     # increment vertically when at the end of a row
@@ -186,7 +219,8 @@ for itile in range(ntiles):
                           beam_arcmin,
                           enmap1=cut_cmb_t,
                           enmap2=cut_cmb_t,
-                          ksz_cls=ksz_cls)
+                          ksz_cls=ksz_cls,
+                          deconvolve=deconvolve)
     # Get bias
     bias = (results_t['reckap_x_reckap'] - reckap_x_reckap_tg_ave) / inkap_x_inkap
 
@@ -237,6 +271,11 @@ Data_dict['inkap_x_reckap'] = st_t.stats['inkap_x_reckap']['mean']
 Data_dict['inkap_x_reckap_err'] = st_t.stats['inkap_x_reckap']['errmean']
 
 Data_df = pd.DataFrame(Data_dict)
-Data_df.to_csv(data_path + map_source + '_' + ksz_type + '_%s_%s_%s.csv' %
-               (experiment, ellmin, ellmax),
-               index=False)
+if use_ksz_g == True:
+    Data_df.to_csv(data_path + map_source + '_' + ksz_type + '_%s_%s_%s.csv' %
+                   (experiment, ellmin, ellmax),
+                   index=False)
+else:
+    Data_df.to_csv(data_path + 'ng_' + map_source + '_' + ksz_type + '_%s_%s_%s.csv' %
+                   (experiment, ellmin, ellmax),
+                   index=False)

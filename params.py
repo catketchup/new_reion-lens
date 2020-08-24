@@ -2,7 +2,13 @@
 interactive = 'True'
 runtime = '00:05:00'
 
-# maps information
+# add beam at first?
+beam = False
+
+# use Gaussian ksz or not
+use_ksz_g = True
+
+# maps information, 'Colin' or 'websky'
 map_source = 'Colin'
 ksz_type = 'lt'
 decmax = 45
@@ -17,8 +23,9 @@ ksz_alms_file = map_path +  'alms/' + f'ksz_{ksz_type}_alms_7000.fits'
 ksz_g_alms_files = map_path + 'alms/' + f'ksz_g_{ksz_type}_alms_7000.fits'
 kap_alms_file = map_path + 'alms/' + 'kap_alms_7000.fits'
 
-# ksz_g_cls
-ksz_cls_file = map_path + 'cls/' + 'ksz_lt_cls_7000.csv'
+# ksz_cls
+ksz_cls_file = map_path + 'cls/' + f'ksz_{ksz_type}_cls_7000.csv'
+
 
 # cutouts number
 cutouts = int(2 * decmax / width_deg * (360 / width_deg))
@@ -50,6 +57,6 @@ experiments = {
     }
 }
 
-moments = {'moments1':{'ellmin':30, 'ellmax':3000, 'delta_L':150},'moments2':{'ellmin':30, 'ellmax':4000, 'delta_L':200}}
+moments = {'moments1':{'ellmin':30, 'ellmax':3000, 'delta_L':20},'moments2':{'ellmin':30, 'ellmax':4000, 'delta_L':20}}
 
 # moments = {'moments1':{'ellmin':30, 'ellmax':5000, 'delta_L':150}}
