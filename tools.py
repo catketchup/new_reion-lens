@@ -25,12 +25,10 @@ class bin_smooth():
         self.binned_ps, self.bin_edges, self.binnumber = scipy.stats.binned_statistic(self.bin_ells, self.ps, statistic='mean', bins=self.bins)
         self.bin_center = (self.bin_edges[1:]+self.bin_edges[:-1])/2
 
-    def smooth(self, ellmin, ellmax, width):
+    def get_cls(self, smooth_ells):
+        smooth_ps = scipy.interpolate.interp1d(self.bin_center, self.binned_ps)(smooth_ells)
 
-        new_ells = np.arange(ellmin, ellmax, width)
-        smooth_ps = scipy.interpolate.interp1d(self.bin_center, self.binned_ps)(new_ells)
-
-        return new_ells, smooth_ps
+        return smooth_ps
 
 def Rec(ellmin,
           ellmax,

@@ -25,10 +25,10 @@ class bin_smooth():
         self.binned_ps, self.bin_edges, self.binnumber = scipy.stats.binned_statistic(self.bin_ells, self.ps, statistic='mean', bins=self.bins)
         self.bin_center = (self.bin_edges[1:]+self.bin_edges[:-1])/2
 
-    def smooth(self, smooth_ells):
+    def get_cls(self, smooth_ells):
         smooth_ps = scipy.interpolate.interp1d(self.bin_center, self.binned_ps)(smooth_ells)
 
-        return  smooth_ps
+        return smooth_ps
 
 def Rec(ellmin,
           ellmax,
@@ -40,24 +40,30 @@ def Rec(ellmin,
           enmap1=None,
           enmap2=None,
           noise=False,
-        ksz_cl=None):
+        ksz_cls=None,
+        deconvolve=True):
     """ Reconstruct a reckap map or its Fourier map """
     map_shape = enmap1.shape
     map_wcs = enmap1.wcs
     map_modlmap = enmap.modlmap(map_shape, map_wcs)
     ells = np.arange(0, map_modlmap.max() + 1, 1)
     theory = cosmology.default_theory()
-    cltt = theory.lCl('TT', map_modlmap)
-    kbeam = maps.gauss_beam(map_modlmap,beam_arcmin)
-    # deconvolved noise kmap
+
+    if ksz_cls is None:
+        cltt = theory.lCl('TT', ells)
+    else:
+        cltt = theory.lCl('TT', ells) + ksz_cls[ells]
+    kbeam = utils.gauss_beam(map_modlmap, beam_arcmin)
+    # deconvolved 2d noise
     n2d = (nlev*np.pi/180./60.)**2./kbeam**2.
 
 
     taper, w2 = maps.get_taper_deg(map_shape, map_wcs)
 
     feed_dict = {}
-    feed_dict['uC_T_T'] = cltt
-    feed_dict['tC_T_T'] = cltt + n2d
+
+    feed_dict['uC_T_T'] = utils.interp(ells, cltt)(map_modlmap)
+    feed_dict['tC_T_T'] = feed_dict['uC_T_T'] + n2d
 
 
     cmask = utils.mask_kspace(map_shape, map_wcs, lmin=ellmin, lmax=ellmax)
@@ -69,8 +75,12 @@ def Rec(ellmin,
     enmap1_k = enmap.fft(enmap1, normalize='phys')
     enmap2_k = enmap.fft(enmap2, normalize='phys')
 
-    feed_dict['X'] = enmap1_k/kbeam
-    feed_dict['Y'] = enmap2_k/kbeam
+    if deconvolve == True:
+        feed_dict['X'] = enmap1_k/kbeam
+        feed_dict['Y'] = enmap2_k/kbeam
+    else:
+        feed_dict['X'] = enmap1_k
+        feed_dict['Y'] = enmap2_k
 
     # unnormalized lensing map in fourier space
     ukappa_k = s.unnormalized_quadratic_estimator(map_shape,
