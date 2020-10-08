@@ -13,9 +13,9 @@ use_ksz_g = True
 ksz_g_realizations = 10
 
 # maps information, 'Colin' or 'websky', 'lt' or 'ri'
-map_source = 'websky'
+map_source = 'Colin'
 ksz_type = 'lt'
-decmax = 90
+decmax = 45
 width_deg = 30
 px_arcmin = 1
 path = '/global/cscratch1/sd/hongbo/new_reion-lens/'
@@ -36,7 +36,7 @@ cutouts = int(2 * decmax / width_deg * (360 / width_deg))
 print('cutout_num:', cutouts)
 # output data path
 data_path = 'output/data' + str(cutouts) + '/'
-if not(os.path.isdir):os.makedirs(data_path)
+
 
 # experiments
 experiments = {
@@ -51,14 +51,6 @@ experiments = {
     'CMB_S4': {
         'nlev_t': 1,
         'beam_arcmin': 3
-    },
-    'reference': {
-        'nlev_t': 0,
-        'beam_arcmin': 3
-    },
-    'test': {
-        'nlev_t': 30,
-        'beam_arcmin': 7
     }
 }
 

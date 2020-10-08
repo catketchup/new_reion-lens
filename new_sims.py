@@ -134,11 +134,11 @@ kap = curvedsky.alm2map(kap_alms, enmap.empty(band_shape, band_wcs))
 ksz_cls_file = m.ksz_cls_file
 ksz_cls = pd.read_csv(ksz_cls_file)['cls']
 
+
+## Non-Gaussian parts
 st_tg = stats.Stats()
 print('Begin to get reckap_x_reckap_tg_ave')
 Data_dict = {}
-
-
 for r in range(ksz_g_realizations):
     ksz_g_alms = hp.synalm(ksz_cls)
     ksz_g = curvedsky.alm2map(ksz_g_alms, enmap.empty(band_shape, band_wcs))
@@ -175,15 +175,16 @@ for r in range(ksz_g_realizations):
         else:
             ix = 0
             iy = iy + npix
-        st_tg.add_to_stats('reckap_x_reckap_tile%s' %(itile), results_tg['reckap_x_reckap'])
+        st_tg.add_to_stats('reckap_x_reckap', results_tg['reckap_x_reckap'])
 
 st_tg.get_stats()
 
+
+## Gaussian parts
 st_t = stats.Stats()
 iy, ix = 0, 0
 print('Begin to get bias for each tile')
 
-# use a dictionary to record ps on each cutout
 for itile in range(ntiles):
     # ipdb.set_trace()
     # Get bottom-right pixel corner
@@ -212,8 +213,6 @@ for itile in range(ntiles):
                           enmap2=cut_cmb_t,
                           ksz_cls=ksz_cls,
                           deconvolve=deconvolve)
-    # Get bias
-    bias = (results_t['reckap_x_reckap'] - st_tg.stats['reckap_x_reckap_tile%s' %(itile)]['mean']) / inkap_x_inkap
 
     # Get inkap_x_reckap
     inkap_x_reckap = tools.powspec(cut_inkap,
@@ -232,19 +231,26 @@ for itile in range(ntiles):
 
     st_t.add_to_stats('inkap_x_inkap', inkap_x_inkap)
     st_t.add_to_stats('reckap_x_reckap', results_t['reckap_x_reckap'])
-    st_t.add_to_stats('bias', bias)
     st_t.add_to_stats('inkap_x_reckap', inkap_x_reckap)
     print('tile %s completed, %s tiles in total' % (itile + 1, ntiles))
+
 st_t.get_stats()
 
-# Store bias in a dictionary
 
+# Get bias
+bias = (st_t.stats['reckap_x_reckap']['mean'] - st_tg.stats['reckap_x_reckap']['mean']) /st_t.stats['inkap_x_inkap']['mean']
+st_t.add_to_stats('bias', bias)
+# Get bias' error
+bias_err = (st_t.stats['reckap_x_reckap']['errmean']**2 + st_tg.stats['reckap_x_reckap']['errmean']**2)/(st_t.stats['inkap_x_inkap']['mean'])**2
+
+
+# Store data in a dictionary
 Data_dict['Ls'] = results_t['Ls']
 Data_dict['reckap_x_reckap'] = st_t.stats['reckap_x_reckap']['mean']
 Data_dict['reckap_x_reckap_err'] = st_t.stats['reckap_x_reckap']['errmean']
 
-Data_dict['bias'] = st_t.stats['bias']['mean']
-Data_dict['bias_err'] = st_t.stats['bias']['errmean']
+Data_dict['bias'] = bias
+Data_dict['bias_err'] = bias_err
 Data_dict['inkap_x_inkap'] = st_t.stats['inkap_x_inkap']['mean']
 Data_dict['inkap_x_reckap'] = st_t.stats['inkap_x_reckap']['mean']
 
