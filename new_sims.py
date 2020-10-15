@@ -85,44 +85,19 @@ ksz_alms_file = m.ksz_alms_file
 ksz_alms = hp.read_alm(ksz_alms_file)
 
 
-beam = m.beam
 
-if  beam == True:
-    # beamed cmb_t map, t for total
-    cmb_t_alms = hp.smoothalm(cmb_alms+ksz_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
-    # beamed cmb_tg map, tg for total Gaussian
-    cmb_tg_alms = hp.smoothalm(cmb_alms+ksz_g_alms, fwhm=np.deg2rad(beam_arcmin/60.), pol=False)
 
-    # Generate beamed_t map, t for total
-    beamed_t = curvedsky.alm2map(cmb_t_alms, enmap.empty(band_shape, band_wcs))
-    # Generate beamed_tg map, tg for total, g for Gaussian
-    beamed_tg = curvedsky.alm2map(cmb_tg_alms, enmap.empty(band_shape, band_wcs))
+cmb = curvedsky.alm2map(cmb_alms, enmap.empty(band_shape, band_wcs))
 
-    # cmb_t, t for total
-    cmb_t = beamed_t + noise
-    # cmb_tg, t for total, g for Gaussian
-    cmb_tg = beamed_tg + noise
 
-    # deconvolve in reconstruction
-    deconvolve = True
 
-else:
-    # lensed cmb
-    cmb = curvedsky.alm2map(cmb_alms, enmap.empty(band_shape, band_wcs))
+# generate ksz and ksz_g, g for Gaussian
+ksz = curvedsky.alm2map(ksz_alms, enmap.empty(band_shape, band_wcs))
 
-    # generate deconvolved noise
-    Cl_noise_TT = Cl_noise_TT/utils.gauss_beam(ells, beam_arcmin)**2
-    noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
+# cmb_t, t for total
+cmb_t = cmb + ksz
 
-    # generate ksz and ksz_g, g for Gaussian
-    ksz = curvedsky.alm2map(ksz_alms, enmap.empty(band_shape, band_wcs))
 
-    # cmb_t, t for total
-    cmb_t = cmb + ksz + noise
-    cmb_tg = cmb + noise
-
-    # don't deconvolve in reconstruction
-    deconvolve = False
 
 # Read in input kappa map for cross correlation check
 print('reading in kappa map')
@@ -143,7 +118,7 @@ for r in range(ksz_g_realizations):
     ksz_g_alms = hp.synalm(ksz_cls)
     ksz_g = curvedsky.alm2map(ksz_g_alms, enmap.empty(band_shape, band_wcs))
     noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
-    cmb_tg = cmb + ksz_g + noise
+    cmb_tg = cmb + ksz_g
     print('ksz_g realization:', r+1)
 
     iy, ix = 0, 0
@@ -164,8 +139,7 @@ for r in range(ksz_g_realizations):
                                beam_arcmin,
                                enmap1=cut_cmb_tg,
                                enmap2=cut_cmb_tg,
-                               ksz_cls=ksz_cls,
-                               deconvolve=deconvolve)
+                               ksz_cls=ksz_cls)
 
         # Stride across the map, horizontally first and
         # increment vertically when at the end of a row
@@ -211,8 +185,7 @@ for itile in range(ntiles):
                           beam_arcmin,
                           enmap1=cut_cmb_t,
                           enmap2=cut_cmb_t,
-                          ksz_cls=ksz_cls,
-                          deconvolve=deconvolve)
+                          ksz_cls=ksz_cls)
 
     # Get inkap_x_reckap
     inkap_x_reckap = tools.powspec(cut_inkap,

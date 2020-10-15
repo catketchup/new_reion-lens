@@ -40,8 +40,7 @@ def Rec(ellmin,
           enmap1=None,
           enmap2=None,
           noise=False,
-        ksz_cls=None,
-        deconvolve=True):
+          ksz_cls=None):
     """ Reconstruct a reckap map or its Fourier map """
     map_shape = enmap1.shape
     map_wcs = enmap1.wcs
@@ -75,12 +74,9 @@ def Rec(ellmin,
     enmap1_k = enmap.fft(enmap1, normalize='phys')
     enmap2_k = enmap.fft(enmap2, normalize='phys')
 
-    if deconvolve == True:
-        feed_dict['X'] = enmap1_k/kbeam
-        feed_dict['Y'] = enmap2_k/kbeam
-    else:
-        feed_dict['X'] = enmap1_k
-        feed_dict['Y'] = enmap2_k
+
+    feed_dict['X'] = enmap1_k
+    feed_dict['Y'] = enmap2_k
 
     # unnormalized lensing map in fourier space
     ukappa_k = s.unnormalized_quadratic_estimator(map_shape,
