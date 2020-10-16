@@ -13,8 +13,8 @@ use_ksz_g = True
 ksz_g_realizations = 10
 
 # maps information, 'Colin' or 'websky', 'lt' or 'ri'
-map_source = 'Colin'
-ksz_type = 'lt'
+map_source = 'websky'
+ksz_type = 'ri'
 decmax = 45
 width_deg = 30
 px_arcmin = 1
