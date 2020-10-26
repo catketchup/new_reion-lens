@@ -105,17 +105,19 @@ kap_alms_file = m.kap_alms_file
 kap_alms = hp.read_alm(kap_alms_file)
 kap = curvedsky.alm2map(kap_alms, enmap.empty(band_shape, band_wcs))
 
-# Read in ksz_cls
-ksz_cls_file = m.ksz_cls_file
-ksz_cls = pd.read_csv(ksz_cls_file)['cls']
+# kap_cls_file = m.kap_cls_file
+# kap_cls = pd.read_csv(kap_cls_file)['cls']
 
+# Read in ksz_cls
+smooth_ksz_cls_file = m.smooth_ksz_cls_file
+smooth_ksz_cls = pd.read_csv(smooth_ksz_cls_file)['cls']
 
 ## Non-Gaussian parts
 st_tg = stats.Stats()
 print('Begin to get reckap_x_reckap_tg_ave')
 Data_dict = {}
 for r in range(ksz_g_realizations):
-    ksz_g_alms = hp.synalm(ksz_cls)
+    ksz_g_alms = hp.synalm(smooth_ksz_cls)
     ksz_g = curvedsky.alm2map(ksz_g_alms, enmap.empty(band_shape, band_wcs))
     noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
     cmb_tg = cmb + ksz_g
@@ -139,7 +141,7 @@ for r in range(ksz_g_realizations):
                                beam_arcmin,
                                enmap1=cut_cmb_tg,
                                enmap2=cut_cmb_tg,
-                               ksz_cls=ksz_cls)
+                               ksz_cls=smooth_ksz_cls)
 
         # Stride across the map, horizontally first and
         # increment vertically when at the end of a row
@@ -185,7 +187,7 @@ for itile in range(ntiles):
                           beam_arcmin,
                           enmap1=cut_cmb_t,
                           enmap2=cut_cmb_t,
-                          ksz_cls=ksz_cls)
+                          ksz_cls=smooth_ksz_cls)
 
     # Get inkap_x_reckap
     inkap_x_reckap = tools.powspec(cut_inkap,
@@ -209,13 +211,16 @@ for itile in range(ntiles):
 
 st_t.get_stats()
 
+# correct bias factor
+factor = st_t.stats['inkap_x_inkap']['mean']/st_t.stats['inkap_x_reckap']['mean']
 
 # Get bias
-bias = (st_t.stats['reckap_x_reckap']['mean'] - st_tg.stats['reckap_x_reckap']['mean']) /st_t.stats['inkap_x_inkap']['mean']
-st_t.add_to_stats('bias', bias)
-# Get bias' error
-bias_err = (st_t.stats['reckap_x_reckap']['errmean']**2 + st_tg.stats['reckap_x_reckap']['errmean']**2)/(st_t.stats['inkap_x_inkap']['mean'])**2
+bias = factor**2*(st_t.stats['reckap_x_reckap']['mean'] - st_tg.stats['reckap_x_reckap']['mean']) /st_t.stats['inkap_x_inkap']['mean']
 
+st_t.add_to_stats('bias', bias)
+
+# Get bias' error
+bias_err = factor**4*(st_t.stats['reckap_x_reckap']['errmean']**2 + st_tg.stats['reckap_x_reckap']['errmean']**2)/(st_t.stats['inkap_x_inkap']['mean'])**2
 
 # Store data in a dictionary
 Data_dict['Ls'] = results_t['Ls']

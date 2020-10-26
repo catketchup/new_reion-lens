@@ -13,8 +13,8 @@ use_ksz_g = True
 ksz_g_realizations = 10
 
 # maps information, 'Colin' or 'websky', 'lt' or 'ri'
-map_source = 'websky'
-ksz_type = 'ri'
+map_source = 'Colin'
+ksz_type = 'lt'
 decmax = 45
 width_deg = 30
 px_arcmin = 1
@@ -25,11 +25,13 @@ map_path = path + 'maps/' + map_source + '/'
 cmb_alms_file = map_path + 'alms/' + 'lensed_cmb_alms_7000.fits'
 ksz_alms_file = map_path +  'alms/' + f'ksz_{ksz_type}_alms_7000.fits'
 ksz_g_alms_files = map_path + 'alms/' + f'ksz_g_{ksz_type}_alms_7000.fits'
+
+kap_cls_file = map_path + 'cls/' + f'kap_cls_7000.csv'
 kap_alms_file = map_path + 'alms/' + 'kap_alms_7000.fits'
 
 # ksz_cls
-ksz_cls_file = map_path + 'cls/' + f'smooth_ksz_{ksz_type}_cls_7000.csv'
-
+smooth_ksz_cls_file = map_path + 'cls/' + f'smooth_ksz_{ksz_type}_cls_7000.csv'
+ksz_cls_file = map_path + 'cls/' + f'ksz_{ksz_type}_cls_7000.csv'
 
 # cutouts number
 cutouts = int(2 * decmax / width_deg * (360 / width_deg))
