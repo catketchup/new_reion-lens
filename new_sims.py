@@ -89,15 +89,16 @@ ksz_alms = hp.read_alm(ksz_alms_file)
 
 cmb = curvedsky.alm2map(cmb_alms, enmap.empty(band_shape, band_wcs))
 
-
+use_cmb = m.use_cmb
 
 # generate ksz and ksz_g, g for Gaussian
 ksz = curvedsky.alm2map(ksz_alms, enmap.empty(band_shape, band_wcs))
 
 # cmb_t, t for total
-cmb_t = cmb + ksz
-
-
+if use_cmb:
+    cmb_t = cmb + ksz
+else:
+    cmb_t = ksz
 
 # Read in input kappa map for cross correlation check
 print('reading in kappa map')
@@ -120,7 +121,12 @@ for r in range(ksz_g_realizations):
     ksz_g_alms = hp.synalm(smooth_ksz_cls)
     ksz_g = curvedsky.alm2map(ksz_g_alms, enmap.empty(band_shape, band_wcs))
     noise = curvedsky.rand_map(band_shape, band_wcs, Cl_noise_TT)
-    cmb_tg = cmb + ksz_g
+
+    if use_cmb:
+        cmb_tg = cmb + ksz_g
+    else:
+        cmb_tg = ksz_g
+
     print('ksz_g realization:', r+1)
 
     iy, ix = 0, 0
@@ -212,7 +218,11 @@ for itile in range(ntiles):
 st_t.get_stats()
 
 # correct bias factor
-factor = st_t.stats['inkap_x_inkap']['mean']/st_t.stats['inkap_x_reckap']['mean']
+if use_cmb:
+    factor = st_t.stats['inkap_x_inkap']['mean']/st_t.stats['inkap_x_reckap']['mean']
+else:
+    factor = 1
+
 
 # Get bias
 bias = factor**2*(st_t.stats['reckap_x_reckap']['mean'] - st_tg.stats['reckap_x_reckap']['mean']) /st_t.stats['inkap_x_inkap']['mean']

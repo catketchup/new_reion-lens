@@ -9,11 +9,14 @@ beam = False
 # use Gaussian ksz or not
 use_ksz_g = True
 
+
+# add cmb map or not
+use_cmb = False
 # Gaussian kSZ realizations
 ksz_g_realizations = 10
 
 # maps information, 'Colin' or 'websky', 'lt' or 'ri'
-map_source = 'Colin'
+map_source = 'websky'
 ksz_type = 'lt'
 decmax = 45
 width_deg = 30
